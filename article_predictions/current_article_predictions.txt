@@ -1,0 +1,7 @@
+Зеленскому	0	10	Antagonist
+Владимиру Зеленскому	75	95	Antagonist
+Виктор Орбан	283	295	Protagonist
+Орбан	565	570	Protagonist
+Зеленский	587	596	Antagonist
+Будапешт	1007	1015	Protagonist
+Орбан	1083	1088	Protagonist
