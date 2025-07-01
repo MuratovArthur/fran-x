@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from load_annotations import load_article, load_labels
-from streamlit_theme import st_theme
+#from streamlit_theme import st_theme
 
 ROLE_COLORS = {
     "Protagonist": "#a1f4a1",
@@ -66,9 +66,9 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
     article = ""
     labels = []
 
-    folder_path = 'chunk_data' if use_example else 'user_articles'
+    folder_path = 'chunk_data' if use_example else 'txt_predictions'
     if choose_user_folder:
-        if folder_path == "user_articles":
+        if folder_path == "txt_predictions":
             if new_session:
                 user_folder = st.sidebar.selectbox("User Folder", ["New Session"] + os.listdir(folder_path))
             else:
@@ -110,11 +110,19 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
             if selected_file != "Select a file":
                 file_path = os.path.join(folder_path, selected_file)
                 article = load_article(file_path)
-                labels = load_labels(
-                    'split_data' if use_example else 'user_articles',
-                    selected_file,
-                    threshold
-                )
+                
+                #labels = load_labels(
+                #    #'split_data' if use_example else 'user_articles',
+                #    selected_file,
+                #    threshold
+                #)
+
+                labels = load_labels("article_predictions", selected_file, 0.1)
+
+                #st.write("sidebar.py")
+                #st.write(labels)
+
+
             elif not valid_files:
                 st.sidebar.warning("⚠️ No files found in the selected folder.")
 
