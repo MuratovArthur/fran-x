@@ -1,0 +1,4 @@
+,text,entity_mention,start_offset,end_offset,p_main_role,context,predicted_roles,predicted_fine_margin
+0,"Footage posted by the State Emergency Service showed firefighters battling a blaze and rushing residents down a dark stairwell in the 21-storey building.
+Russia has stepped up drone and missile strikes on Ukrainian cities in recent weeks as diplomatic efforts to end the nearly three-and-a-half-year-old war have stalled.",Russia,154,160,Antagonist,"age posted by the State Emergency Service showed firefighters battling a blaze and rushing residents down a dark stairwell in the 21-storey building.
+Russia has stepped up drone and missile strikes on Ukrainian cities in recent weeks as diplomatic efforts to end the nearly three-and-a-half-year-old war ha","{'Instigator': 0.5421, 'Foreign Adversary': 0.311, 'Tyrant': 0.1098, 'Conspirator': 0.0388, 'Terrorist': 0.0343, 'Incompetent': 0.0314, 'Saboteur': 0.0145}",['Instigator']
