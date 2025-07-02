@@ -13,7 +13,7 @@ from pyvis.network import Network
 from collections import Counter
 import itertools
 from sidebar import render_sidebar, load_file_names, ROLE_COLORS
-from load_annotations import load_article, load_labels
+from load_annotations import load_article, load_labels_old
 from render_text import reformat_text_html_with_tooltips, predict_entity_framing, normalize_entities
 
 def hex_to_rgb(hex_color):

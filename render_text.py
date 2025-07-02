@@ -205,15 +205,25 @@ def predict_entity_framing(labels, threshold: float = 0.0):
 
     for entity, mentions in labels.items():
         for mention in mentions:
-            if mention['confidence'] >= threshold:
+            fine_roles = mention.get('fine_roles', {})
+            if not fine_roles:
+                continue
+
+            # Sort roles by score descending
+            sorted_roles = sorted(fine_roles.items(), key=lambda x: x[1], reverse=True)
+            top_role, top_confidence = sorted_roles[0]
+
+            # Only add if above threshold
+            if top_confidence >= threshold:
                 records.append({
                     'entity': entity,
-                    'main_role': mention['main_role'],
-                    'fine_roles': mention['fine_roles'],
-                    'confidence': mention['confidence'],
-                    'start': mention['start_offset'],
-                    'end': mention['end_offset'],
-                    'sentence':mention['sentence']
+                    'main_role': mention.get('main_role', ''),
+                    'fine_roles': fine_roles,
+                    'top_fine_role': top_role,
+                    'confidence': top_confidence,
+                    'start': mention.get('start_offset'),
+                    'end': mention.get('end_offset'),
+                    'sentence': mention.get('sentence', '')
                 })
 
     # Ensure there is at least one record to avoid breaking downstream code

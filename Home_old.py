@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
-import requests
 import re
 from sidebar import render_sidebar, ROLE_COLORS
 from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans
@@ -10,158 +9,37 @@ import streamlit as st
 import sys
 import os
 from pathlib import Path
-import ast
 from mode_tc_utils.preprocessing import convert_prediction_txt_to_csv
 from mode_tc_utils.tc_inference import run_role_inference
 
 # Add the seq directory to the path to import predict.py
 sys.path.append(str(Path(__file__).parent / 'seq'))
 
-# ============================================================================
-# MODEL CACHING - Load both models once on app launch
-# ============================================================================
-
-@st.cache_resource
-def load_ner_model():
-    """Load the NER model once and cache it."""
-    try:
-        import torch
-        from src.deberta import DebertaV3NerClassifier
-        
-        model_path = 'artur-muratov/franx-ner'
-        bert_model = DebertaV3NerClassifier.load(model_path)
-        
-        # Add +1 bias to non-O classes (same as inference_deberta)
-        with torch.no_grad():
-            current_bias = bert_model.model.classifier.bias
-            o_index = bert_model.label2id.get('O', 0)
-            for i in range(len(current_bias)):
-                if i != o_index:
-                    current_bias[i] += 1.0
-        
-        bert_model.model = bert_model.model.to('cuda' if torch.cuda.is_available() else 'cpu')
-        if hasattr(bert_model, 'merger'):
-            bert_model.merger.threshold = 0.5
-            
-        return bert_model
-    except Exception as e:
-        st.error(f"Failed to load NER model: {e}")
-        return None
-
-@st.cache_resource 
-def load_stage2_model():
-    """Load the stage 2 classification model once and cache it."""
-    try:
-        from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
-        
-        model_path = "artur-muratov/franx-cls"
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
-        model = AutoModelForSequenceClassification.from_pretrained(model_path)
-        clf_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer, return_all_scores=True)
-        
-        return clf_pipeline
-    except Exception as e:
-        st.error(f"Failed to load Stage 2 model: {e}")
-        return None
-
-def predict_with_cached_model(article_id, bert_model, text, output_filename="predictions.txt", output_dir="output"):
-    """Run prediction using the cached NER model."""
-    from pathlib import Path
-    
-    # Create output directory if it doesn't exist
-    output_path = Path(output_dir)
-    output_path.mkdir(exist_ok=True)
-    
-    # Get predictions from the model
-    spans = bert_model.predict(text, return_format='spans')
-    pred_spans = []
-    
-    for sp in spans:
-        s, e = sp['start'], sp['end']
-        seg = text[s:e]
-        s += len(seg) - len(seg.lstrip())
-        e -= len(seg) - len(seg.rstrip())
-        role_probs = [(sp['prob_antagonist'], 'Antagonist'),
-                      (sp['prob_protagonist'], 'Protagonist'),
-                      (sp['prob_innocent'], 'Innocent'),
-                      (sp['prob_unknown'], 'Unknown')]
-        _, role = max(role_probs)
-        pred_spans.append((s, e, role))
-
-    # Format predictions for output
-    output_lines = []
-    non_unknown = 0
-    
-    for s, e, role in pred_spans:
-        entity_text = text[s:e].replace('\n', ' ').replace('\r', ' ').strip()
-        if role != 'Unknown':
-            non_unknown += 1
-        # Format: entity_text, start, end, role
-        output_lines.append(f"{article_id}\t{entity_text}\t{s}\t{e}\t{role}")
-
-    # Save predictions to txt file
-    #output_file_path = output_path / article_id
-    #st.write(output_file_path)
-    #st.write(user_folder)
-    #output_file_path.write_text('\n'.join(output_lines), encoding='utf-8')
-
-    a = Path("article_predictions") / "current_article_predictions.txt"
-    a.write_text('\n'.join(output_lines), encoding='utf-8')
-    
-    return output_lines, non_unknown
-
-def run_stage2_with_cached_model(article_id, clf_pipeline, df, threshold=0.01, margin=0.05):
-    """Run stage 2 inference using the cached classification model."""
-    def pipeline_with_confidence(example, threshold=threshold):
-        input_text = (
-            f"Entity: {example['entity_mention']}\n"
-            f"Main Role: {example['p_main_role']}\n"
-            f"Context: {example['context']}"
-        )
-        try:
-            scores = clf_pipeline(input_text)[0]  # [{'label': ..., 'score': ...}]
-        except Exception as e:
-            print(f"Error in pipeline: {e}")
-            return {}
-
-        filtered_scores = {
-            s['label']: round(s['score'], 4) for s in scores if s['score'] > threshold
-        }
-        return dict(sorted(filtered_scores.items(), key=lambda x: x[1], reverse=True))
-
-    def select_roles_within_margin(scores, margin=margin):
-        if not scores:
-            return []
-        top_score = max(scores.values())
-        return [role for role, score in scores.items() if score >= top_score - margin]
-
-    # Apply predictions
-    df['predicted_fine_with_scores'] = df.apply(pipeline_with_confidence, axis=1)
-    df['predicted_fine_margin'] = df['predicted_fine_with_scores'].apply(select_roles_within_margin)
-    df['article_id'] = article_id
-    return df
-
-# Load models on app startup
-NER_MODEL = load_ner_model()
-STAGE2_MODEL = load_stage2_model()
-
-# Check if models loaded successfully
-if NER_MODEL is not None and STAGE2_MODEL is not None:
+try:
+    from predict import predict_text_to_file
     PREDICTION_AVAILABLE = True
-    prediction_error = None
-elif NER_MODEL is None:
+except ImportError as e:
     PREDICTION_AVAILABLE = False
-    prediction_error = "NER model failed to load"
-elif STAGE2_MODEL is None:
-    PREDICTION_AVAILABLE = False
-    prediction_error = "Stage 2 model failed to load"
-else:
-    PREDICTION_AVAILABLE = False
-    prediction_error = "Both models failed to load"
+    prediction_error = str(e)
 
 #def generate_response(input_text):
     #model = ChatOpenAI(temperature=0.7, api_key=openai_api_key)
     #st.info(model.invoke(input_text))
+
+
+# Narrative classification
+def predict_narrative_classification(text, threshold=0.0):
+    data = [
+        {"narrative": "Western Interference", "confidence": 0.88},
+        {"narrative": "Peace Sabotage",      "confidence": 0.85},
+        {"narrative": "Proxy War",           "confidence": 0.80},
+    ]
+    df = pd.DataFrame(data)
+    return df[df.confidence >= threshold]
+
+# Free-form narrative extraction
+def extract_narrative(text):
+    return "Kremlin claims British pressure and additional Russian demands thwarted a potential Ukraine peace deal."
 
 def escape_entity(entity):
     return re.sub(r'([.^$*+?{}\[\]\\|()])', r'\\\1', entity)
@@ -182,69 +60,28 @@ def filter_labels_by_role(labels, role_filter):
 st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout="wide")
 st.title("FRaN-X: Entity Framing & Narrative Analysis")
 
-_, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, False, True, True)
-article = ""
-
 # Article input
 st.header("1. Article Input")
 
-filename_input = st.text_input("Filename (without extension)")
+article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar()
 
-mode = st.radio("Input mode", ["Paste Text","URL"])
-if mode == "Paste Text":
-    article = st.text_area("Article", value=article if article else "", height=300, help="Paste or type your article text here. You can also load articles from the sidebar.")    
-    os.makedirs("user_articles", exist_ok=True)
-
-else:
-    url = st.text_input("Article URL")
-    article = ""
-    if url:
-        try:
-            with st.spinner("Fetching article from URL..."):
-                resp = requests.get(url)
-                soup = BeautifulSoup(resp.content, 'html.parser')
-                article = '\n'.join(p.get_text() for p in soup.find_all('p'))
-            
-            if article.strip():
-                st.text_area("Fetched Article", value=article, height=200, disabled=True)
-            else:
-                st.warning("Could not extract meaningful content from the URL.")
-        except Exception as e:
-            st.error(f"Error fetching article from URL: {str(e)}")
-
-
+# Allow users to edit the article text directly
+article = st.text_area("Article", value=article if article else "", height=300, 
+                      help="Paste or type your article text here. You can also load articles from the sidebar.")
 
 # Debug info (can remove later)
 if article:
     st.caption(f"📝 Article length: {len(article)} characters")
 
-
-
 # Add prediction functionality right after the text area
 if PREDICTION_AVAILABLE:
-    st.success("🤖 **Both Models Loaded**: Ready for entity prediction and fine-grained role classification.")
-    filename = ""
-    predictions_dir = ""
+    st.success("🤖 **Entity Prediction Model Loaded**: Run predictions on any article text.")
+    
     # Always show buttons if prediction is available
     col1, col2 = st.columns(2)
     
     with col1:
         if st.button("🔍 Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
-            # Generate filename
-            import datetime
-            from pathlib import Path
-
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{filename_input}_{timestamp}_predictions.txt"
-            st.write(filename)
-
-
-            filename_wo_pred = f"{filename_input}_{timestamp}.txt"
-            a = Path("txt_predictions") / user_folder / filename_wo_pred
-            a.write_text(article, encoding='utf-8')
-
-
-
             if article and article.strip():
                 try:
                     with st.spinner("Analyzing entities in your article..."):
@@ -252,75 +89,43 @@ if PREDICTION_AVAILABLE:
                         predictions_dir = "article_predictions"
                         os.makedirs(predictions_dir, exist_ok=True)
                         
-                        # Run prediction with cached NER model
-                        #puts values in the current_articles_predictions.txt file
-                        predictions, non_unknown_count = predict_with_cached_model(
-                            article_id=filename,
-                            bert_model=NER_MODEL,
+                        # Run prediction
+                        predictions, non_unknown_count = predict_text_to_file(
                             text=article,
                             output_filename="current_article_predictions.txt",
                             output_dir=predictions_dir
                         )
-                        
                         # convert txt output of stage 1 into csv and prepare for text classification model 2
                         # also extracts context
-                        #puts things into tc_input
                         stage2_csv_path = os.path.join(predictions_dir, "tc_input.csv")
-                        convert_prediction_txt_to_csv(
-                            article_id=filename,
-                            article=article,
+                        convert_prediction_txt_to_csv(article,
                             prediction_file=os.path.join(predictions_dir, "current_article_predictions.txt"),
                             article_text=article,
                             output_csv=stage2_csv_path
-                        )
-
-                        st.write("after convert function")
+                            )
+                        
                         stage2_df = pd.read_csv("article_predictions/tc_input.csv")
-                        # Run stage 2 with cached model
-                        stage2_df = run_stage2_with_cached_model(filename, STAGE2_MODEL, stage2_df)
+                        stage2_df = run_role_inference(stage2_df)
 
-                        #puts things in tc_output
                         output_path = os.path.join(predictions_dir, "tc_output.csv")
                         stage2_df.to_csv(output_path, index=False)
-                        with open(output_path, "w", encoding="utf-8") as f:
-                            f.write(article)
                     
                     st.success(f"✅ Entity analysis complete! Found {len(predictions)} entities ({non_unknown_count} with specific roles)")
                     
-                    # Show detailed predictions with confidence scores
+                    # Show detailed predictions
                     if predictions:
                         with st.expander("🎯 Detected Entities", expanded=True):
-                            # Get all entity spans with confidence scores ONCE (not in the loop!)
-                            entity_spans = NER_MODEL.predict(article, return_format='spans')
-                            
                             for i, pred in enumerate(predictions):
-                                text_id, entity, start, end, role = pred.split('\t')
-                                
-                                # Find matching span for this entity
-                                confidence_score = None
-                                for span in entity_spans:
-                                    if span['start'] == int(start) and span['end'] == int(end):
-                                        if role == "Protagonist":
-                                            confidence_score = span['prob_protagonist']
-                                        elif role == "Antagonist":
-                                            confidence_score = span['prob_antagonist']
-                                        elif role == "Innocent":
-                                            confidence_score = span['prob_innocent']
-                                        elif role == "Unknown":
-                                            confidence_score = span['prob_unknown']
-                                        break
-                                
-                                confidence_text = f" (confidence: {confidence_score:.3f})" if confidence_score is not None else ""
-                                
+                                entity, start, end, role = pred.split('\t')
                                 # Color code by role
                                 if role == "Protagonist":
-                                    st.markdown(f"🟢 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                                    st.markdown(f"🟢 **{entity}** - {role} (position {start}-{end})")
                                 elif role == "Antagonist":
-                                    st.markdown(f"🔴 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                                    st.markdown(f"🔴 **{entity}** - {role} (position {start}-{end})")
                                 elif role == "Innocent":
-                                    st.markdown(f"🔵 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                                    st.markdown(f"🔵 **{entity}** - {role} (position {start}-{end})")
                                 else:
-                                    st.markdown(f"⚪ **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                                    st.markdown(f"⚪ **{entity}** - {role} (position {start}-{end})")
 
                     else:
                         st.info("No entities detected in the article.")
@@ -362,47 +167,42 @@ if PREDICTION_AVAILABLE:
             else:
                 st.warning("⚠️ Please enter some article text first.")
     
-    #with col2:
-    #    if st.button("💾 Save Predictions to File", help="Save current predictions to txt_predictions folder", key="save_main"):
-    #        if article and article.strip() and user_folder:
-    #            try:
-    #                with st.spinner("Saving predictions..."):
-    #                    # Create user-specific predictions directory
-    #                    predictions_dir = os.path.join('txt_predictions', user_folder)
-    #                    os.makedirs(predictions_dir, exist_ok=True)
-    #                    
-    #                    # Run prediction with cached model and save
-    #                    predictions, non_unknown_count = predict_with_cached_model(
-    #                        article_id=filename,
-    #                        bert_model=NER_MODEL,
-    #                        text=article,
-    #                        output_filename=filename,
-    #                        output_dir=predictions_dir
-    #                    )
-    #                
-    #                st.success(f"💾 Predictions saved to: txt_predictions/{user_folder}/{filename}")
-    #                st.info(f"📊 Summary: {len(predictions)} entities found ({non_unknown_count} with specific roles)")
-    #                
-    #            except Exception as e:
-    #                st.error(f"Error saving predictions: {str(e)}")
-    #        elif not article or not article.strip():
-    #            st.warning("⚠️ Please enter some article text first.")
-    #        elif not user_folder:
-    #            st.warning("⚠️ Please select a user folder in the sidebar first.")
-    #        else:
-    #            st.warning("Entity prediction model is not available.")
+    with col2:
+        if st.button("💾 Save Predictions to File", help="Save current predictions to txt_predictions folder", key="save_main"):
+            if article and article.strip() and user_folder:
+                try:
+                    with st.spinner("Saving predictions..."):
+                        # Create user-specific predictions directory
+                        predictions_dir = os.path.join('txt_predictions', user_folder)
+                        os.makedirs(predictions_dir, exist_ok=True)
+                        
+                        # Generate filename with timestamp
+                        import datetime
+                        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                        filename = f"home_analysis_{timestamp}_predictions.txt"
+                        
+                        # Run prediction and save
+                        predictions, non_unknown_count = predict_text_to_file(
+                            text=article,
+                            output_filename=filename,
+                            output_dir=predictions_dir
+                        )
+                    
+                    st.success(f"💾 Predictions saved to: txt_predictions/{user_folder}/{filename}")
+                    st.info(f"📊 Summary: {len(predictions)} entities found ({non_unknown_count} with specific roles)")
+                    
+                except Exception as e:
+                    st.error(f"Error saving predictions: {str(e)}")
+            elif not article or not article.strip():
+                st.warning("⚠️ Please enter some article text first.")
+            elif not user_folder:
+                st.warning("⚠️ Please select a user folder in the sidebar first.")
+            else:
+                st.warning("Entity prediction model is not available.")
 else:
-    st.warning(f"⚠️ **Entity Prediction Unavailable**: {prediction_error if prediction_error else 'Models not loaded'}")
+    st.warning(f"⚠️ **Entity Prediction Unavailable**: {prediction_error if 'prediction_error' in locals() else 'Model not loaded'}")
 
 st.markdown("---")
-
-
-
-
-
-
-
-
 
 if article and labels:
     show_annot   = st.checkbox("Show annotated article view", True)

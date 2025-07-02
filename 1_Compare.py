@@ -1,6 +1,6 @@
 import streamlit as st
 from sidebar import render_sidebar
-from load_annotations import load_article, load_labels, load_file_names
+from load_annotations import load_article, load_labels_old, load_file_names
 from Home import reformat_text_html_with_tooltips
 
 ROLE_COLORS = {

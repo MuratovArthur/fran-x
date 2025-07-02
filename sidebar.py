@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from load_annotations import load_article, load_labels
+from load_annotations import load_article, load_labels_stage2
 #from streamlit_theme import st_theme
 
 ROLE_COLORS = {
@@ -66,9 +66,9 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
     article = ""
     labels = []
 
-    folder_path = 'chunk_data' if use_example else 'txt_predictions'
+    folder_path = 'chunk_data' if use_example else 'user_articles'
     if choose_user_folder:
-        if folder_path == "txt_predictions":
+        if folder_path == "user_articles":
             if new_session:
                 user_folder = st.sidebar.selectbox("User Folder", ["New Session"] + os.listdir(folder_path))
             else:
@@ -117,7 +117,7 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
                 #    threshold
                 #)
 
-                labels = load_labels("article_predictions", selected_file, 0.1)
+                labels = load_labels_stage2(selected_file, 0.1)
 
                 #st.write("sidebar.py")
                 #st.write(labels)

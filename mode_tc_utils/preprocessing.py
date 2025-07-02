@@ -46,17 +46,14 @@ def convert_prediction_txt_to_csv(article_id, article, prediction_file, article_
     records = []
     with open(prediction_file, encoding="utf-8") as f:
         for line in f:
+            st.write(line)
             parts = line.strip().split("\t")
-            st.write(parts)
             if len(parts) < 5:
                 continue  # Skip incomplete lines
-            st.write("reaches here")
             article_id, entity, start, end, p_main_role = parts[:5]
 
-            st.write("here")
 
             context = char_window_context(article, start, end)
-            st.write("not here")
 
             sentence = extract_entity_sentence(article, start, end)
 
@@ -70,9 +67,7 @@ def convert_prediction_txt_to_csv(article_id, article, prediction_file, article_
                 "context": context,
                 "sentence": sentence
             })
-            st.write("got here")
 
-    st.write("finished loop ")
     df = pd.DataFrame(records)
     df.to_csv(output_csv, index=False, encoding="utf-8")
 

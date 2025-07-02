@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from sidebar import render_sidebar, load_file_names
-from load_annotations import load_article, load_labels
+from load_annotations import load_article, load_labels_old
 from render_text import reformat_text_html_with_tooltips
 
 st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout="wide")

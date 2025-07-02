@@ -8,7 +8,7 @@ import streamlit.components.v1 as components
 from collections import Counter
 from pyvis.network import Network
 from sidebar import render_sidebar, load_file_names, ROLE_COLORS
-from load_annotations import load_article, load_labels
+from load_annotations import load_article, load_labels_old
 from render_text import predict_entity_framing, normalize_entities
 
 

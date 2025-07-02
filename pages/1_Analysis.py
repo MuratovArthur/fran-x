@@ -51,6 +51,7 @@ st.title("FRaN-X: Entity Framing & Narrative Analysis")
 st.header("1. Article Input")
 
 article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar()
+st.write(labels)
 st.text_area("Article", article, height=300)
 
 if article and labels:
