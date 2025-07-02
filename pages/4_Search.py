@@ -1,7 +1,7 @@
 import streamlit as st
 import os
 from sidebar import render_sidebar, load_file_names
-from load_annotations import load_article, load_labels_old
+from load_annotations import load_article, load_labels_stage2
 from render_text import reformat_text_html_with_tooltips
 
 st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout="wide")
@@ -25,8 +25,7 @@ word = st.text_input("Search for: ")
 for f in files:
     article = load_article(f'{folder_path}/{f}').strip()
     if word in article:
-        labels = load_labels(
-            'split_data' if user_folder == None else 'user_articles',
+        labels = load_labels_stage2(
             f,
             threshold
         )

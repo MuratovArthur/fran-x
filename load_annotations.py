@@ -97,7 +97,7 @@ def load_labels_old(folder_name, article_file_name, threshold=0.0):
     role_timeline = defaultdict(list)
     csv_files = [str(f) for f in Path(folder_name).iterdir() if f.is_file()]
 
-    st.write(csv_files)
+    ##st.write(csv_files)
 
     n = 0
     for csv_file in csv_files:
@@ -162,7 +162,8 @@ def load_labels_stage2(article_file_name, threshold=0.0):
     # Define full path to tc_output.csv
     target_file = Path('article_predictions') / "tc_output.csv"
 
-    st.write(f"Reading from: {target_file}")
+    ##st.write(f"Reading from: {target_file}")
+    ##st.write(f"Looking for labels of: {article_file_name}")
 
     if not target_file.is_file():
         st.warning(f"❌ File not found: {target_file}")
@@ -171,9 +172,9 @@ def load_labels_stage2(article_file_name, threshold=0.0):
     with open(target_file, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            #st.write(row)
-            #st.write(row['article_id'])
-            #st.write(article_file_name)
+            ##st.write(row)
+            ##st.write(row['article_id'])
+            ##st.write(article_file_name)
             if row['article_id'] != article_file_name:
                 continue
 
@@ -184,11 +185,11 @@ def load_labels_stage2(article_file_name, threshold=0.0):
                 start_offset = int(row['start_offset'])
                 adjusted_end = int(row['end_offset'])
                 
-                #st.write(f"here: {row['predicted_fine_with_scores']} fjksdjfk;")
+                ##st.write(f"here: {row['predicted_fine_with_scores']} fjksdjfk;")
 
-                #st.write(0)
+                ##st.write(0)
 
-                fine_roles_dict = safe_fine_roles_dict(row['predicted_fine_with_scores'])
+                fine_roles_dict = safe_fine_roles_dict(row['p_fine_roles_w_conf'])
                 sorted_roles = sorted(fine_roles_dict.items(), key=lambda x: x[1], reverse=True)
 
                 if sorted_roles:

@@ -51,13 +51,15 @@ st.title("FRaN-X: Entity Framing & Narrative Analysis")
 st.header("1. Article Input")
 
 article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar()
-st.write(labels)
+
+if labels == []:
+    st.warning("Upload files in the Home page or switch to demo mode to access the functionality of this page.")
+#st.write(labels)
 st.text_area("Article", article, height=300)
 
 if article and labels:
     show_annot = st.checkbox("Show annotated article view", True)
     df_f = predict_entity_framing(labels, threshold)
-
 
     # 2. Annotated article view
     if show_annot:
@@ -139,12 +141,6 @@ if article and labels:
     # --- Sentence Display by Role with Adaptive Layout ---
     st.markdown("## 4. Sentences by Role Classification")
 
-    #df_f['main_role'] = df_f['main_role'].str.strip().str.title()
-    #st.write(df_f)
-    #df_f['fine_roles'] = df_f['fine_roles'].apply(lambda roles: [r.strip().title() for r in roles if r.strip()])
-    
-    
-
     df_f = df_f[df_f['main_role'].isin(ROLE_COLORS)]
 
     main_roles = sorted(df_f['main_role'].unique())
@@ -159,18 +155,19 @@ if article and labels:
         with col:
             role_df = df_f[df_f['main_role'] == role][['sentence', 'fine_roles', 'confidence']].copy()
 
-            role_sentences = role_df.drop_duplicates()
+            #st.write(type(role_df))
+            #role_sentences = role_df.drop_duplicates()
 
             st.markdown(
                 f"<div style='background-color:{ROLE_COLORS[role]}; "
                 f"padding: 8px; border-radius: 6px; font-weight:bold;'>"
-                f"{role} — {len(role_sentences)} labels"
+                f"{role} — {len(role_df)} labels"
                 f"</div>",
                 unsafe_allow_html=True
             )
             
             seen_fine_roles = None
-            for sent in role_sentences['sentence'].unique():
+            for sent in role_df['sentence'].unique():
                 html_block, seen_fine_roles = format_sentence_with_spans(sent, filter_labels_by_role(labels, role_filter), threshold, hide_repeat, False, seen_fine_roles)
                 st.markdown(html_block, unsafe_allow_html = True)
 

@@ -13,7 +13,7 @@ from pyvis.network import Network
 from collections import Counter
 import itertools
 from sidebar import render_sidebar, load_file_names, ROLE_COLORS
-from load_annotations import load_article, load_labels_old
+from load_annotations import load_article, load_labels_stage2
 from render_text import reformat_text_html_with_tooltips, predict_entity_framing, normalize_entities
 
 def hex_to_rgb(hex_color):
@@ -76,7 +76,7 @@ for i, col in enumerate(columns):
         
         if selected_file != "Select a file":
             article_text = load_article(f"{article_folder}/{selected_file}")
-            labels = load_labels(label_folder, selected_file, threshold)
+            labels = load_labels_stage2(selected_file, threshold)
             
 
             html = reformat_text_html_with_tooltips(article_text, labels, hide_repeat)
@@ -144,7 +144,7 @@ if distribution_data:
         selected_file = st.session_state.get(f"file_{i}")
         if selected_file and selected_file != "Select a file":
             article_text = load_article(f"{article_folder}/{selected_file}")
-            labels = load_labels(label_folder, selected_file, threshold)
+            labels = load_labels_stage2(selected_file, threshold)
             df_detail = predict_entity_framing(labels, threshold)
             df_detail = df_detail[df_detail['main_role'].isin(role_filter)]
             all_detailed_data.append(df_detail)
@@ -312,7 +312,7 @@ if distribution_data:
     for i in range(column_count):
         selected_file = st.session_state.get(f"file_{i}")
         if selected_file and selected_file != "Select a file":
-            labels = load_labels(label_folder, selected_file, threshold)
+            labels = load_labels_stage2(selected_file, threshold)
             df_network = predict_entity_framing(labels, threshold)
             df_network = df_network[df_network['main_role'].isin(role_filter)]
             df_network = df_network.explode("fine_roles")

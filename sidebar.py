@@ -28,7 +28,7 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
     if "hide_repeat" not in st.session_state:
         st.session_state.hide_repeat = False
     if "threshold" not in st.session_state:
-        st.session_state.threshold = 0.5
+        st.session_state.threshold = 0.35
     if "role_filter" not in st.session_state:
         st.session_state.role_filter = list(ROLE_COLORS.keys())
     #if "franx_theme" not in st.session_state:
@@ -37,7 +37,7 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
 
     # Sidebar widget
     if check_example:
-        use_example = st.sidebar.checkbox("Use example article for illustration", value=st.session_state.use_example)
+        use_example = st.sidebar.checkbox("Demo mode with example articles", value=st.session_state.use_example)
         if use_example != st.session_state.use_example:
             st.session_state.use_example = use_example
             st.rerun()
@@ -90,6 +90,7 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
         if choose_user_file:
             file_names = load_file_names(folder_path)
             valid_files = [f for f in file_names if f and not f.startswith('.')]
+            ##st.write(valid_files)
             file_options = ["Select a file"] + valid_files
 
             if "article_name" not in st.session_state or st.session_state.article_name not in valid_files:
@@ -109,6 +110,7 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
 
             if selected_file != "Select a file":
                 file_path = os.path.join(folder_path, selected_file)
+                ##st.write(file_path)
                 article = load_article(file_path)
                 
                 #labels = load_labels(
@@ -118,9 +120,10 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
                 #)
 
                 labels = load_labels_stage2(selected_file, 0.1)
+                ##st.write(labels)
 
-                #st.write("sidebar.py")
-                #st.write(labels)
+                ##st.write("sidebar.py")
+                ##st.write(labels)
 
 
             elif not valid_files:

@@ -106,8 +106,8 @@ def predict_with_cached_model(article_id, bert_model, text, output_filename="pre
 
     # Save predictions to txt file
     output_file_path = output_path / (article_id + "_predictions.txt")
-    st.write(output_file_path)
-    #st.write(user_folder)
+    ##st.write(output_file_path)
+    ##st.write(user_folder)
     output_file_path.write_text('\n'.join(output_lines), encoding='utf-8')
 
     a = Path("article_predictions") / "current_article_preds.txt"
@@ -119,6 +119,7 @@ def predict_with_cached_model(article_id, bert_model, text, output_filename="pre
 
 def run_stage2_with_cached_model(article_id, clf_pipeline, df, threshold=0.01, margin=0.05):
     """Run stage 2 inference using the cached classification model."""
+
     def pipeline_with_confidence(example, threshold=threshold):
         input_text = (
             f"Entity: {example['entity_mention']}\n"
@@ -142,11 +143,19 @@ def run_stage2_with_cached_model(article_id, clf_pipeline, df, threshold=0.01, m
         top_score = max(scores.values())
         return [role for role, score in scores.items() if score >= top_score - margin]
 
+    def filter_scores_by_margin(row):
+        scores = row['predicted_fine_with_scores']
+        margin_roles = row['predicted_fine_margin']
+        return {role: scores[role] for role in margin_roles if role in scores}
+
     # Apply predictions
     df['predicted_fine_with_scores'] = df.apply(pipeline_with_confidence, axis=1)
     df['predicted_fine_margin'] = df['predicted_fine_with_scores'].apply(select_roles_within_margin)
+    df['p_fine_roles_w_conf'] = df.apply(filter_scores_by_margin, axis=1)
     df['article_id'] = article_id
+
     return df
+
 
 # Load models on app startup
 NER_MODEL = load_ner_model()
@@ -226,7 +235,7 @@ else:
 
 # Debug info (can remove later)
 if article:
-    st.caption(f"📝 Article length: {len(article)} characters")
+    st.caption(f"Article length: {len(article)} characters")
 
 
 
@@ -239,14 +248,14 @@ if PREDICTION_AVAILABLE:
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("🔍 Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
+        if st.button("Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
             # Generate filename
             import datetime
             from pathlib import Path
 
             timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
             filename = f"{filename_input}_{timestamp}_predictions.csv"
-            #st.write(filename)
+            ##st.write(filename)
 
 
             filename_wo_pred = f"{filename_input}_{timestamp}"
@@ -595,7 +604,7 @@ if article and labels:
 
     #openai_api_key = st.text_input("OpenAI API Key", type="password")
 
-    #st.write(role_sentences)
+    ##st.write(role_sentences)
 
 
     #sent = st.selectbox("Choose sentence: ", role_sentences['sentence'])
@@ -603,7 +612,7 @@ if article and labels:
 
     #text = "Enter text:" + "Give an explanation for why the following sentence has been annotated as an Antagonist, Protogonist, or Innocent based on the surrounding context:",sent
     
-    #st.write(text)
+    ##st.write(text)
 
     #submitted = st.form_submit_button("Submit")
     #if not openai_api_key.startswith("sk-"):

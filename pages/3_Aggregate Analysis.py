@@ -8,7 +8,7 @@ import streamlit.components.v1 as components
 from collections import Counter
 from pyvis.network import Network
 from sidebar import render_sidebar, load_file_names, ROLE_COLORS
-from load_annotations import load_article, load_labels_old
+from load_annotations import load_article, load_labels_stage2
 from render_text import predict_entity_framing, normalize_entities
 
 
@@ -40,7 +40,7 @@ network_rows = []
 
 for f in files:
     article_text = load_article(f'{folder_path}/{f}').strip()
-    labels = load_labels('split_data' if user_folder == None else 'user_articles', f, threshold)
+    labels = load_labels_stage2(f, threshold)
     df_network = predict_entity_framing(labels, threshold)
     df_network = df_network[df_network['main_role'].isin(role_filter)]
     df_network = df_network.explode("fine_roles")

@@ -199,7 +199,6 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
 
 
 
-
 def predict_entity_framing(labels, threshold: float = 0.0):
     records = []
 
@@ -207,10 +206,13 @@ def predict_entity_framing(labels, threshold: float = 0.0):
         for mention in mentions:
             fine_roles = mention.get('fine_roles', {})
             if not fine_roles:
-                continue
+                continue  # Skip mentions with no fine roles entirely
 
             # Sort roles by score descending
             sorted_roles = sorted(fine_roles.items(), key=lambda x: x[1], reverse=True)
+            if not sorted_roles:
+                continue  # Extra check in case sorting results in an empty list
+
             top_role, top_confidence = sorted_roles[0]
 
             # Only add if above threshold
@@ -226,19 +228,23 @@ def predict_entity_framing(labels, threshold: float = 0.0):
                     'sentence': mention.get('sentence', '')
                 })
 
-    # Ensure there is at least one record to avoid breaking downstream code
+    # Optional fallback if no records passed the threshold
     if not records:
         records.append({
             'entity': 'abcdef',
             'main_role': 'innocent',
-            'fine_roles': ['forgotten'],
+            'fine_roles': {'forgotten': 0.0},
+            'top_fine_role': 'forgotten',
             'confidence': 0.0,
             'start': 0,
             'end': 0,
-            'sentence':'abcdef'
+            'sentence': 'abcdef'
         })
 
+    ##st.write(labels)
+    ##st.write(records)
     return pd.DataFrame(records)
+
 
 
 def format_sentence_with_spans(sentence_text, labels, threshold, hide_repeat=True, show_fine_roles=False, seen_fine_roles=None):

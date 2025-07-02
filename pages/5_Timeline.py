@@ -21,33 +21,53 @@ def highlight_fine_roles(sentence, roles, color):
 
 
 def render_block(block, role_main, role_fine, count, color):
-   fine_display = ", ".join(role_fine) if isinstance(role_fine, list) else role_fine
+    # role_fine is expected to be a list of dicts like [{ "Terrorist": 0.5408 }]
+    #st.write(role_fine)
 
-   with st.expander(f"{role_main} / {fine_display} ({count} instances)", expanded=True):
-       for b in block:
-           fine_roles = b['fine_roles'] if isinstance(b['fine_roles'], list) else [b['fine_roles']]
-           highlighted_sentence = highlight_fine_roles(b['sentence'], fine_roles, color)
-           highlighted_roles = ", ".join(
-               f"<span style='background-color:{color}; padding:2px 6px; border-radius:4px; font-weight:bold;'>{fr}</span>"
-               for fr in fine_roles if isinstance(fr, str)
-           )
-           st.markdown(
-               f"""<div style='padding:10px; border-radius:5px; margin-bottom:5px; border: 1px solid #ddd;'>
-               <b>Fine Role(s):</b> {highlighted_roles}<br>
-               <b>Confidence:</b> {b['confidence']:.2f}<br>
-               <b>Sentence:</b> {highlighted_sentence}</div>""",
-               unsafe_allow_html=True
-           )
+    # Extract just the role names for display
+    if isinstance(role_fine, list):
+        fine_display = ", ".join([list(r.keys())[0] for r in role_fine if isinstance(r, dict)])
+    else:
+        fine_display = str(role_fine)
+
+    with st.expander(f"{role_main} / {fine_display} ({count} instances)", expanded=True):
+        for b in block:
+            fine_roles = b['fine_roles']
+            if isinstance(fine_roles, list):
+                fine_roles = [list(r.keys())[0] if isinstance(r, dict) else str(r) for r in fine_roles]
+            else:
+                fine_roles = [fine_roles]
+
+            highlighted_sentence = highlight_fine_roles(b['sentence'], fine_roles, color)
+
+            highlighted_roles = ", ".join(
+                f"<span style='background-color:{color}; padding:2px 6px; border-radius:4px; font-weight:bold;'>{fr}</span>"
+                for fr in fine_roles if isinstance(fr, str)
+            )
+
+            st.markdown(
+                f"""<div style='padding:10px; border-radius:5px; margin-bottom:5px; border: 1px solid #ddd;'>
+                <b>Fine Role(s):</b> {highlighted_roles}<br>
+                <b>Confidence:</b> {b['confidence']:.2f}<br>
+                <b>Sentence:</b> {highlighted_sentence}</div>""",
+                unsafe_allow_html=True
+            )
+
 
 
 if article and labels:
     df_f = predict_entity_framing(labels, threshold)
+    ##st.write(df_f)
     df_f = df_f[df_f['main_role'].isin(role_filter)]
 
-    df_f = normalize_entities(df_f, 70)
+    #df_f = normalize_entities(df_f, 10)
 
     df_f.sort_values(by=["entity", "start"], inplace=True)
+
+    ##st.write(df_f)
     entity_order = df_f.groupby("entity")["start"].min().sort_values().index.tolist()
+
+    ##st.write(entity_order)
 
     for entity in entity_order:
         group = df_f[df_f["entity"] == entity]
@@ -69,8 +89,9 @@ if article and labels:
                 color = ROLE_COLORS.get(prev_main, "#ccc")
                 render_block(block, prev_main, prev_fine, count, color)
 
-                prev_fine_display = ", ".join(prev_fine) if isinstance(prev_fine, list) else prev_fine
-                new_fine_display = ", ".join(fine) if isinstance(fine, list) else fine
+                prev_fine_display = ", ".join([list(f.keys())[0] for f in prev_fine if isinstance(f, dict)])
+                new_fine_display = ", ".join([list(f.keys())[0] for f in fine if isinstance(f, dict)])
+
                 st.markdown(f"""
                 <div style='background-color:rgba(249, 249, 249, 0.7); border-left:4px solid {ROLE_COLORS.get(main)}; padding:10px; margin:10px 0; border-radius:6px; font-size:15px;'>
                 <b>↪️ Role Change {entity}</b><br>
@@ -89,6 +110,7 @@ if article and labels:
 
         if block:
             color = ROLE_COLORS.get(prev_main, "#ccc")
+
             render_block(block, prev_main, prev_fine, count, color)
 
 st.markdown("---")
