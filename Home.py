@@ -245,9 +245,9 @@ if PREDICTION_AVAILABLE:
     filename = ""
     predictions_dir = ""
     # Always show buttons if prediction is available
-    col1, col2 = st.columns(2)
+    #col1, col2 = st.columns(2)
     
-    with col1:
+    if True:
         if st.button("Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
             # Generate filename
             import datetime
@@ -381,7 +381,7 @@ if PREDICTION_AVAILABLE:
 
                                 # Format role + score for display
                                 formatted_roles = ", ".join(
-                                f"{role}: confidence = ({fine_scores.get(role, '—')})" for role in fine_roles
+                                f"{role}: confidence = {fine_scores.get(role, '—')}" for role in fine_roles
                                     ) if fine_roles else "None"
 
 

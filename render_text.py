@@ -61,6 +61,7 @@ def normalize_entities(graph_df, threshold=90):
 def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highlighted_word=None):
     spans = []
     entity_history = defaultdict(set)
+    ##st.write(labels_dict)
 
     # Collect spans
     for entity, mentions in labels_dict.items():
@@ -73,15 +74,17 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
                 st.stop()
                 raise TypeError(f"Malformed mention at entity '{entity}': {mention}")
 
-            start = mention.get("start_offset", 0)
-            end = mention.get("end_offset", 0)
+            ##st.write(mention)
+            start = mention.get("start", 7)
+            end = mention.get("end", 0)
+            ##st.write(f"start:{start}, emd: {end}")
 
             start = max(0, min(start, len(text)))
             end = max(start, min(end, len(text)))
 
             main_role = mention.get("main_role", "")
             color = ROLE_COLORS.get(main_role, "#000000")
-            fine_roles_set = frozenset(r.strip().title() for r in mention.get("fine_roles", []))
+            fine_roles_set = frozenset(r.strip().title() for r in mention.get("fine_roles"))
             fine_roles_str = ", ".join(fine_roles_set)
 
             is_repeated = fine_roles_set in entity_history[entity]
@@ -89,10 +92,12 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
             if not (hide_repeat and is_repeated and color.startswith("#")):
                 entity_history[entity].add(fine_roles_set)
 
+            ##st.write(mention.get('confidence'))
+
             tooltip = (
                 f"Role: {main_role or 'Unknown'}<br>"
-                f"Confidence: {mention.get('confidence', 'N/A')}<br>"
-                f"Fine roles: {fine_roles_str}"
+                f"Confidence: {mention.get('confidence')}<br>"
+                f"Fine roles: {mention.get('fine_roles')}"
             )
 
             entity_text = text[start:end].strip() or entity
@@ -104,9 +109,11 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
                     entity_text
                 )
 
-            if hide_repeat and is_repeated:
+            if hide_repeat and (hide_repeat == True and is_repeated):
                 continue  # skip rendering this mention entirely
             else:
+                ##st.write(f"start:{start}, emd: {end}")
+
                 spans.append({
                     "start": start,
                     "end": end,
@@ -114,19 +121,22 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
                         f'<span class="entity" '
                         f'style="background-color:{adjusted_color}; padding:3px 6px; border-radius:4px;" '
                         f'data-tooltip="{tooltip}">'
-                        f'{entity_text} | <span style="font-size: smaller;">{fine_roles_str}</span></span>'
+                        f'{entity_text} | <span style="font-size: smaller;">{mention.get("fine_roles")}</span></span>'
                     )
                 })
 
 
-    # Sort by start offset
-    spans.sort(key=lambda x: x["start"])
 
+    # Sort by start offset
+    ##st.write(spans)
+    spans.sort(key=lambda x: x["start"])
+    ##st.write(spans)
     # Assemble annotated text with optional highlighting
     result = []
     last_idx = 0
     for span in spans:
         start, end = span["start"], span["end"]
+        ##st.write(f"start:{start}, emd: {end}")
         if start < last_idx:
             continue  # Overlap detected
 
@@ -193,48 +203,46 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
     </body></html>
     """
 
-
-
     return html
 
 
 
+import pandas as pd
+import streamlit as st
+
 def predict_entity_framing(labels, threshold: float = 0.0):
     records = []
+    ##st.write(labels)
 
     for entity, mentions in labels.items():
         for mention in mentions:
             fine_roles = mention.get('fine_roles', {})
             if not fine_roles:
-                continue  # Skip mentions with no fine roles entirely
+                continue  # Skip mentions with no fine roles
 
-            # Sort roles by score descending
-            sorted_roles = sorted(fine_roles.items(), key=lambda x: x[1], reverse=True)
-            if not sorted_roles:
-                continue  # Extra check in case sorting results in an empty list
+            for role, confidence in fine_roles.items():
+                ##st.write(confidence)
+                ##st.write(role)
+                ##st.write(f'threshold of {threshold}')
 
-            top_role, top_confidence = sorted_roles[0]
-
-            # Only add if above threshold
-            if top_confidence >= threshold:
-                records.append({
-                    'entity': entity,
-                    'main_role': mention.get('main_role', ''),
-                    'fine_roles': fine_roles,
-                    'top_fine_role': top_role,
-                    'confidence': top_confidence,
-                    'start': mention.get('start_offset'),
-                    'end': mention.get('end_offset'),
-                    'sentence': mention.get('sentence', '')
-                })
+                if confidence >= threshold:
+                    ##st.write(f'passes threshold of {threshold}')
+                    records.append({
+                        'entity': entity,
+                        'main_role': mention.get('main_role', ''),
+                        'fine_roles': role,
+                        'confidence': confidence,
+                        'start': mention.get('start_offset'),
+                        'end': mention.get('end_offset'),
+                        'sentence': mention.get('sentence', '')
+                    })
 
     # Optional fallback if no records passed the threshold
     if not records:
         records.append({
             'entity': 'abcdef',
             'main_role': 'innocent',
-            'fine_roles': {'forgotten': 0.0},
-            'top_fine_role': 'forgotten',
+            'fine_roles': 'forgotten',
             'confidence': 0.0,
             'start': 0,
             'end': 0,
@@ -244,6 +252,7 @@ def predict_entity_framing(labels, threshold: float = 0.0):
     ##st.write(labels)
     ##st.write(records)
     return pd.DataFrame(records)
+
 
 
 

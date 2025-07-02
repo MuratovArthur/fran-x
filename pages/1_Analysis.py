@@ -13,33 +13,29 @@ import streamlit as st
     #model = ChatOpenAI(temperature=0.7, api_key=openai_api_key)
     #st.info(model.invoke(input_text))
 
-
-# Narrative classification
-def predict_narrative_classification(text, threshold=0.0):
-    data = [
-        {"narrative": "Western Interference", "confidence": 0.88},
-        {"narrative": "Peace Sabotage",      "confidence": 0.85},
-        {"narrative": "Proxy War",           "confidence": 0.80},
-    ]
-    df = pd.DataFrame(data)
-    return df[df.confidence >= threshold]
-
-# Free-form narrative extraction
-def extract_narrative(text):
-    return "Kremlin claims British pressure and additional Russian demands thwarted a potential Ukraine peace deal."
-
 def escape_entity(entity):
     return re.sub(r'([.^$*+?{}\[\]\\|()])', r'\\\1', entity)
 
-def filter_labels_by_role(labels, role_filter):
-    filtered = {}
-    for entity, mentions in labels.items():
-        filtered_mentions = [
-            m for m in mentions if m.get("main_role") in role_filter
-        ]
-        if filtered_mentions:
-            filtered[entity] = filtered_mentions
-    return filtered
+def filter_labels_by_role(df_f, role_filter):
+    """
+    Filters rows of the DataFrame by main_role values in role_filter.
+    Returns a dictionary grouped by entity (if present) or a filtered DataFrame.
+    """
+    if 'entity' in df_f.columns:
+        filtered = {}
+        grouped = df_f.groupby('entity')
+
+        for entity, group in grouped:
+            filtered_mentions = group[group['main_role'].isin(role_filter)].to_dict(orient='records')
+            if filtered_mentions:
+                filtered[entity] = filtered_mentions
+
+        return filtered
+    else:
+        # Fallback: just return filtered DataFrame
+        return df_f[df_f['main_role'].isin(role_filter)]
+
+
 
 
 # --- Streamlit App ---
@@ -59,14 +55,17 @@ st.text_area("Article", article, height=300)
 
 if article and labels:
     show_annot = st.checkbox("Show annotated article view", True)
+    df_f = []
     df_f = predict_entity_framing(labels, threshold)
+    ##st.write(df_f)
 
     # 2. Annotated article view
     if show_annot:
         st.header("2. Annotated Article")
-        html = reformat_text_html_with_tooltips(article, filter_labels_by_role(labels, role_filter), hide_repeat)
+        ##st.write(filter_labels_by_role(df_f, role_filter))
+        html = reformat_text_html_with_tooltips(article, filter_labels_by_role(df_f, role_filter), hide_repeat)
         st.components.v1.html(html, height=600, scrolling = True)     
-
+        
     # 3. Entity framing & timeline
 
     if not df_f.empty:

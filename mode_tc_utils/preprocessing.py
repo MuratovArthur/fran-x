@@ -46,7 +46,7 @@ def convert_prediction_txt_to_csv(article_id, article, prediction_file, article_
     records = []
     with open(prediction_file, encoding="utf-8") as f:
         for line in f:
-            st.write(line)
+            ##st.write(line)
             parts = line.strip().split("\t")
             if len(parts) < 5:
                 continue  # Skip incomplete lines
