@@ -1,0 +1,33 @@
+EN_UA_004209	Russia	0	6	Protagonist
+EN_UA_004209	Finland if NATO	35	50	Antagonist
+EN_UA_004209	Russia	62	68	Protagonist
+EN_UA_004209	Finland if NATO	97	112	Antagonist
+EN_UA_004209	Vladimir Putin	122	136	Protagonist
+EN_UA_004209	Finland	161	168	Antagonist
+EN_UA_004209	NATO	202	206	Antagonist
+EN_UA_004209	Finland	393	400	Antagonist
+EN_UA_004209	NATO	498	502	Antagonist
+EN_UA_004209	Finland	602	609	Antagonist
+EN_UA_004209	Putin	663	668	Protagonist
+EN_UA_004209	Putin	724	729	Protagonist
+EN_UA_004209	NATO	825	829	Antagonist
+EN_UA_004209	Finland	863	870	Antagonist
+EN_UA_004209	Russia	961	967	Protagonist
+EN_UA_004209	Russia	1004	1010	Protagonist
+EN_UA_004209	Finland	1043	1050	Antagonist
+EN_UA_004209	Putin	1063	1068	Protagonist
+EN_UA_004209	Finland	1088	1095	Antagonist
+EN_UA_004209	Finland	1208	1215	Antagonist
+EN_UA_004209	Putin	1555	1560	Protagonist
+EN_UA_004209	Finland	1573	1580	Antagonist
+EN_UA_004209	NATO	1727	1731	Antagonist
+EN_UA_004209	Finland	1778	1785	Antagonist
+EN_UA_004209	Russia	2089	2095	Protagonist
+EN_UA_004209	Finland	2135	2142	Antagonist
+EN_UA_004209	Russia	2317	2323	Protagonist
+EN_UA_004209	Finland	2362	2369	Antagonist
+EN_UA_004209	Russia	2571	2577	Protagonist
+EN_UA_004209	Finland	2981	2988	Antagonist
+EN_UA_004209	Deputy Foreign Minister Alexander Grushko	3038	3079	Protagonist
+EN_UA_004209	Russia	3085	3091	Protagonist
+EN_UA_004209	NATO	3103	3107	Antagonist

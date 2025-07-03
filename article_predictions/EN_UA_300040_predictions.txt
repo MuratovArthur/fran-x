@@ -1,0 +1,14 @@
+EN_UA_300040	President	5	14	Antagonist
+EN_UA_300040	President	133	142	Antagonist
+EN_UA_300040	President	259	268	Antagonist
+EN_UA_300040	Ukrainian government	412	432	Antagonist
+EN_UA_300040	Ukraine	601	608	Antagonist
+EN_UA_300040	Ukraine	888	895	Antagonist
+EN_UA_300040	Ukrainian	1027	1036	Antagonist
+EN_UA_300040	Ukraine	1172	1179	Antagonist
+EN_UA_300040	Ukrainian	1229	1238	Antagonist
+EN_UA_300040	Russian Federation	1358	1376	Protagonist
+EN_UA_300040	Ukraine	1741	1748	Antagonist
+EN_UA_300040	President Biden	1837	1852	Antagonist
+EN_UA_300040	Ukraine	1872	1879	Antagonist
+EN_UA_300040	Russia	2083	2089	Protagonist

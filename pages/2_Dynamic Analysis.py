@@ -61,7 +61,7 @@ threshold = st.session_state.get("threshold", 0.5)
 article_folder = 'chunk_data' if use_example else 'user_articles'
 label_folder = 'article_predictions'
 
-if user_folder:
+if user_folder == None:
     article_folder = 'chunk_data'
 else:
     session_names = [f for f in load_file_names('user_articles') if f and not f.startswith('.')]

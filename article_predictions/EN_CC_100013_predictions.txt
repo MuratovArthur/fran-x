@@ -1,0 +1,15 @@
+EN_CC_100013	Bill Gates	0	10	Antagonist
+EN_CC_100013	Bill Gates	93	103	Antagonist
+EN_CC_100013	Bill Gates	257	267	Antagonist
+EN_CC_100013	BBC	290	293	Antagonist
+EN_CC_100013	Gates	360	365	Antagonist
+EN_CC_100013	Gates	722	727	Antagonist
+EN_CC_100013	Gates	978	983	Antagonist
+EN_CC_100013	Gates	1018	1023	Antagonist
+EN_CC_100013	Gates	1180	1185	Antagonist
+EN_CC_100013	Gates	1416	1421	Antagonist
+EN_CC_100013	Gates	1493	1498	Antagonist
+EN_CC_100013	Gates	1732	1737	Antagonist
+EN_CC_100013	BBC	1860	1863	Antagonist
+EN_CC_100013	Gates	1898	1903	Antagonist
+EN_CC_100013	Jeffrey Epstein	2005	2020	Antagonist

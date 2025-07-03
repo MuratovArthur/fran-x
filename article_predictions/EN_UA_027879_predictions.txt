@@ -1,0 +1,29 @@
+EN_UA_027879	Putin	0	5	Protagonist
+EN_UA_027879	West	11	15	Antagonist
+EN_UA_027879	Zelensky	38	46	Antagonist
+EN_UA_027879	Putin	92	97	Protagonist
+EN_UA_027879	West	103	107	Antagonist
+EN_UA_027879	Zelensky	130	138	Antagonist
+EN_UA_027879	Russian President Vladimir Putin	182	214	Protagonist
+EN_UA_027879	the West	383	391	Antagonist
+EN_UA_027879	Zelensky	593	601	Antagonist
+EN_UA_027879	Putin	604	609	Protagonist
+EN_UA_027879	Zelensky	738	746	Antagonist
+EN_UA_027879	Putin	841	846	Protagonist
+EN_UA_027879	Washington	857	867	Antagonist
+EN_UA_027879	the West	919	927	Antagonist
+EN_UA_027879	Putin	1145	1150	Protagonist
+EN_UA_027879	Putin	1329	1334	Protagonist
+EN_UA_027879	Zelensky	1419	1427	Antagonist
+EN_UA_027879	Zelensky	1527	1535	Antagonist
+EN_UA_027879	Zelensky	1902	1910	Antagonist
+EN_UA_027879	Putin	2046	2051	Protagonist
+EN_UA_027879	Putin	2069	2074	Protagonist
+EN_UA_027879	Russia	2172	2178	Protagonist
+EN_UA_027879	Putin	2344	2349	Protagonist
+EN_UA_027879	Zelensky	2367	2375	Antagonist
+EN_UA_027879	Russia	2507	2513	Protagonist
+EN_UA_027879	Russia	2573	2579	Protagonist
+EN_UA_027879	Putin	2722	2727	Protagonist
+EN_UA_027879	Zelensky	2753	2761	Antagonist
+EN_UA_027879	Zelensky	2838	2846	Antagonist

@@ -14,6 +14,7 @@ from pathlib import Path
 import ast
 from mode_tc_utils.preprocessing import convert_prediction_txt_to_csv
 from mode_tc_utils.tc_inference import run_role_inference
+from bs4 import BeautifulSoup
 
 # Add the seq directory to the path to import predict.py
 sys.path.append(str(Path(__file__).parent / 'seq'))
