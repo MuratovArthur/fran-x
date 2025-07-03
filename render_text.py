@@ -75,8 +75,8 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
                 raise TypeError(f"Malformed mention at entity '{entity}': {mention}")
 
             ##st.write(mention)
-            start = mention.get("start", 7)
-            end = mention.get("end", 0)
+            start = mention.get("start_offset", 7)
+            end = mention.get("end_offset", 0)
             ##st.write(f"start:{start}, emd: {end}")
 
             start = max(0, min(start, len(text)))
@@ -86,6 +86,9 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
             color = ROLE_COLORS.get(main_role, "#000000")
             fine_roles_set = frozenset(r.strip().title() for r in mention.get("fine_roles"))
             fine_roles_str = ", ".join(fine_roles_set)
+            filtered_roles_str = ', '.join(
+                role for role, score in mention.get('fine_roles').items()
+            )
 
             is_repeated = fine_roles_set in entity_history[entity]
             adjusted_color = color
@@ -115,27 +118,25 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
                 ##st.write(f"start:{start}, emd: {end}")
 
                 spans.append({
-                    "start": start,
-                    "end": end,
+                    "start_offset": start,
+                    "end_offset": end,
                     "html": (
                         f'<span class="entity" '
                         f'style="background-color:{adjusted_color}; padding:3px 6px; border-radius:4px;" '
                         f'data-tooltip="{tooltip}">'
-                        f'{entity_text} | <span style="font-size: smaller;">{mention.get("fine_roles")}</span></span>'
+                        f'{entity_text} | <span style="font-size: smaller;">{filtered_roles_str}</span></span>'
                     )
                 })
 
-
-
     # Sort by start offset
     ##st.write(spans)
-    spans.sort(key=lambda x: x["start"])
+    spans.sort(key=lambda x: x["start_offset"])
     ##st.write(spans)
     # Assemble annotated text with optional highlighting
     result = []
     last_idx = 0
     for span in spans:
-        start, end = span["start"], span["end"]
+        start, end = span["start_offset"], span["end_offset"]
         ##st.write(f"start:{start}, emd: {end}")
         if start < last_idx:
             continue  # Overlap detected
@@ -212,6 +213,46 @@ import streamlit as st
 
 def predict_entity_framing(labels, threshold: float = 0.0):
     records = []
+
+    for entity, mentions in labels.items():
+        for mention in mentions:
+            fine_roles = mention.get('fine_roles', {})
+            if not fine_roles:
+                continue  # Skip mentions with no fine roles
+
+            filtered_roles = {
+                role: confidence for role, confidence in fine_roles.items()
+                if confidence >= threshold
+            }
+
+            if filtered_roles:
+                records.append({
+                    'entity': entity,
+                    'main_role': mention.get('main_role', ''),
+                    'fine_roles': filtered_roles,
+                    'start_offset': mention.get('start_offset'),
+                    'end_offset': mention.get('end_offset'),
+                    'sentence': mention.get('sentence', '')
+                })
+
+    # Optional fallback if no records passed the threshold
+    if not records:
+        records.append({
+            'entity': 'abcdef',
+            'main_role': 'innocent',
+            'fine_roles': {'forgotten': 0.0},
+            'start_offset': 0,
+            'end_offset': 0,
+            'sentence': 'abcdef'
+        })
+
+    ##st.write(labels)
+    ##st.write(records)
+    return pd.DataFrame(records)
+
+
+def row_per_role_entity_framing(labels, threshold: float = 0.0):
+    records = []
     ##st.write(labels)
 
     for entity, mentions in labels.items():
@@ -252,7 +293,6 @@ def predict_entity_framing(labels, threshold: float = 0.0):
     ##st.write(labels)
     ##st.write(records)
     return pd.DataFrame(records)
-
 
 
 
