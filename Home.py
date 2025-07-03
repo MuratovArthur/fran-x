@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import requests
+import datetime
 import re
 from sidebar import render_sidebar, ROLE_COLORS
 from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans
@@ -101,13 +102,10 @@ def predict_with_cached_model(article_id, bert_model, text, output_filename="pre
         if role != 'Unknown':
             non_unknown += 1
         # Format: entity_text, start, end, role
-        #st.write(f"article_ID{article_id}")
         output_lines.append(f"{article_id}\t{entity_text}\t{s}\t{e}\t{role}")
 
     # Save predictions to txt file
     output_file_path = output_path / (article_id + "_predictions.txt")
-    ##st.write(output_file_path)
-    ##st.write(user_folder)
     output_file_path.write_text('\n'.join(output_lines), encoding='utf-8')
 
     a = Path("article_predictions") / "current_article_preds.txt"
@@ -245,154 +243,152 @@ if PREDICTION_AVAILABLE:
     filename = ""
     predictions_dir = ""
     # Always show buttons if prediction is available
-    #col1, col2 = st.columns(2)
     
-    if True:
-        if st.button("Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
-            # Generate filename
-            import datetime
-            from pathlib import Path
+    if st.button("Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
+        # Generate filename
 
-            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"{filename_input}_{timestamp}_predictions.csv"
-            ##st.write(filename)
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{filename_input}_{timestamp}_predictions.csv"
 
 
-            filename_wo_pred = f"{filename_input}_{timestamp}"
-            a = Path("user_articles") / user_folder / filename_wo_pred
-            a.write_text(article, encoding='utf-8')
+        filename_wo_pred = f"{filename_input}_{timestamp}"
+        a = Path("user_articles") / user_folder / filename_wo_pred
+        a.write_text(article, encoding='utf-8')
 
 
 
-            if article and article.strip():
-                try:
-                    with st.spinner("Analyzing entities in your article..."):
-                        # Create output directory
-                        predictions_dir = "article_predictions"
-                        os.makedirs(predictions_dir, exist_ok=True)
+        if article and article.strip():
+            try:
+                with st.spinner("Analyzing entities in your article..."):
+                    # Create output directory
+                    predictions_dir = "article_predictions"
+                    os.makedirs(predictions_dir, exist_ok=True)
                         
-                        # Run prediction with cached NER model
-                        #puts values in the current_articles_predictions.txt file
-                        predictions, non_unknown_count = predict_with_cached_model(
-                            article_id=filename_wo_pred,
-                            bert_model=NER_MODEL,
-                            text=article,
-                            output_filename="current_article_preds.txt",
-                            output_dir=predictions_dir
-                        )
+                    # Run prediction with cached NER model
+                    #puts values in the current_articles_predictions.txt file
+                    predictions, non_unknown_count = predict_with_cached_model(
+                        article_id=filename_wo_pred,
+                        bert_model=NER_MODEL,
+                        text=article,
+                        output_filename="current_article_preds.txt",
+                        output_dir=predictions_dir
+                    )
                         
-                        # convert txt output of stage 1 into csv and prepare for text classification model 2
-                        # also extracts context
-                        #puts things into tc_input
-                        # Step 1: Load existing tc_output.csv (if it exists)
-                        input_stage2_csv_path = os.path.join(predictions_dir, "tc_input.csv")
-                        output_stage2_csv_path = os.path.join(predictions_dir, "tc_output.csv")
+                    # convert txt output of stage 1 into csv and prepare for text classification model 2
+                    # also extracts context
+                    #puts things into tc_input
+                    # Step 1: Load existing tc_output.csv (if it exists)
+                    input_stage2_csv_path = os.path.join(predictions_dir, "tc_input.csv")
+                    output_stage2_csv_path = os.path.join(predictions_dir, "tc_output.csv")
 
-                        if os.path.exists(output_stage2_csv_path):
-                            existing_df = pd.read_csv(output_stage2_csv_path)
-                        else:
-                            existing_df = pd.DataFrame()
-
-                        # Step 2: Convert Stage 1 predictions into CSV
-                        convert_prediction_txt_to_csv(
-                            article_id=filename_wo_pred,
-                            article=article,
-                            prediction_file=os.path.join(predictions_dir, "current_article_preds.txt"),
-                            article_text=article,
-                            output_csv=input_stage2_csv_path
-                        )
-
-                        # Step 3: Load newly written tc_input.csv
-                        new_input_df = pd.read_csv(input_stage2_csv_path)
-
-                        # Step 4: Run Stage 2 predictions on new inputs
-                        new_stage2_df = run_stage2_with_cached_model(filename_wo_pred, STAGE2_MODEL, new_input_df)
-
-                        # Step 5: Merge existing + new predictions
-                        combined_df = pd.concat([existing_df, new_stage2_df], ignore_index=True)
-
-                        # Step 6: Save to tc_output.csv
-                        output_path = os.path.join(predictions_dir, "tc_output.csv")
-                        combined_df.to_csv(output_path, index=False, encoding="utf-8")
-
-                        st.success(f"✅ tc_output.csv updated with {len(new_stage2_df)} new rows ({len(combined_df)} total)")
-                    
-                    st.success(f"✅ Entity analysis complete! Found {len(predictions)} entities ({non_unknown_count} with specific roles)")
-                    
-                    # Show detailed predictions with confidence scores
-                    if predictions:
-                        with st.expander("🎯 Detected Entities", expanded=True):
-                            # Get all entity spans with confidence scores ONCE (not in the loop!)
-                            entity_spans = NER_MODEL.predict(article, return_format='spans')
-                            
-                            for i, pred in enumerate(predictions):
-                                text_id, entity, start, end, role = pred.split('\t')
-                                
-                                # Find matching span for this entity
-                                confidence_score = None
-                                for span in entity_spans:
-                                    if span['start'] == int(start) and span['end'] == int(end):
-                                        if role == "Protagonist":
-                                            confidence_score = span['prob_protagonist']
-                                        elif role == "Antagonist":
-                                            confidence_score = span['prob_antagonist']
-                                        elif role == "Innocent":
-                                            confidence_score = span['prob_innocent']
-                                        elif role == "Unknown":
-                                            confidence_score = span['prob_unknown']
-                                        break
-                                
-                                confidence_text = f" (confidence: {confidence_score:.3f})" if confidence_score is not None else ""
-                                
-                                # Color code by role
-                                if role == "Protagonist":
-                                    st.markdown(f"🟢 **{entity}** - {role}{confidence_text} (position {start}-{end})")
-                                elif role == "Antagonist":
-                                    st.markdown(f"🔴 **{entity}** - {role}{confidence_text} (position {start}-{end})")
-                                elif role == "Innocent":
-                                    st.markdown(f"🔵 **{entity}** - {role}{confidence_text} (position {start}-{end})")
-                                else:
-                                    st.markdown(f"⚪ **{entity}** - {role}{confidence_text} (position {start}-{end})")
-
+                    if os.path.exists(output_stage2_csv_path):
+                        existing_df = pd.read_csv(output_stage2_csv_path)
                     else:
-                        st.info("No entities detected in the article.")
+                        existing_df = pd.DataFrame()
 
-                    if not new_stage2_df.empty:
-                        with st.expander("🧠 Fine-Grained Role Predictions", expanded=True):
-                            for _, row in new_stage2_df.iterrows():
-                                entity = row.get("entity_mention", "N/A")
-                                main_role = row.get("p_main_role", "N/A")
+                    # Step 2: Convert Stage 1 predictions into CSV
+                    convert_prediction_txt_to_csv(
+                        article_id=filename_wo_pred,
+                        article=article,
+                        prediction_file=os.path.join(predictions_dir, "current_article_preds.txt"),
+                        article_text=article,
+                        output_csv=input_stage2_csv_path
+                    )
 
-                                # Parse list of fine roles and their scores
-                                fine_roles = row.get("predicted_fine_margin", [])
-                                fine_scores = row.get("predicted_fine_with_scores", {})
+                    # Step 3: Load newly written tc_input.csv
+                    new_input_df = pd.read_csv(input_stage2_csv_path)
 
-                                if isinstance(fine_roles, str):
-                                    try:
-                                        fine_roles = ast.literal_eval(fine_roles)
-                                    except:
-                                        fine_roles = []
+                    # Step 4: Run Stage 2 predictions on new inputs
+                    new_stage2_df = run_stage2_with_cached_model(filename_wo_pred, STAGE2_MODEL, new_input_df)
 
-                                if isinstance(fine_scores, str):
-                                    try:
-                                        fine_scores = ast.literal_eval(fine_scores)
-                                    except:
-                                        fine_scores = {}
+                    # Step 5: Merge existing + new predictions
+                    combined_df = pd.concat([existing_df, new_stage2_df], ignore_index=True)
 
-                                # Format role + score for display
-                                formatted_roles = ", ".join(
-                                f"{role}: confidence = {fine_scores.get(role, '—')}" for role in fine_roles
-                                    ) if fine_roles else "None"
+                    # Step 6: Save to tc_output.csv
+                    output_path = os.path.join(predictions_dir, "tc_output.csv")
+                    combined_df.to_csv(output_path, index=False, encoding="utf-8")
+
+                    st.success(f"✅ tc_output.csv updated with {len(new_stage2_df)} new rows ({len(combined_df)} total)")
+                    
+                st.success(f"✅ Entity analysis complete! Found {len(predictions)} entities ({non_unknown_count} with specific roles)")
+                    
+                # Show detailed predictions with confidence scores
+                if predictions:
+                    with st.expander("🎯 Detected Entities", expanded=True):
+                        # Get all entity spans with confidence scores ONCE (not in the loop!)
+                        entity_spans = NER_MODEL.predict(article, return_format='spans')
+                            
+                        for i, pred in enumerate(predictions):
+                            text_id, entity, start, end, role = pred.split('\t')
+                                
+                            # Find matching span for this entity
+                            confidence_score = None
+                            for span in entity_spans:
+                                if span['start'] == int(start) and span['end'] == int(end):
+                                    if role == "Protagonist":
+                                        confidence_score = span['prob_protagonist']
+                                    elif role == "Antagonist":
+                                        confidence_score = span['prob_antagonist']
+                                    elif role == "Innocent":
+                                        confidence_score = span['prob_innocent']
+                                    elif role == "Unknown":
+                                        confidence_score = span['prob_unknown']
+                                    break
+                                
+                            confidence_text = f" (confidence: {confidence_score:.3f})" if confidence_score is not None else ""
+                                
+                            # Color code by role
+                            if role == "Protagonist":
+                                st.markdown(f"🟢 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                            elif role == "Antagonist":
+                                st.markdown(f"🔴 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                            elif role == "Innocent":
+                                st.markdown(f"🔵 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                            else:
+                                st.markdown(f"⚪ **{entity}** - {role}{confidence_text} (position {start}-{end})")
+
+                else:
+                    st.info("No entities detected in the article.")
+
+                if not new_stage2_df.empty:
+                    with st.expander("🧠 Fine-Grained Role Predictions", expanded=True):
+                        for _, row in new_stage2_df.iterrows():
+                            entity = row.get("entity_mention", "N/A")
+                            main_role = row.get("p_main_role", "N/A")
+
+                            # Parse list of fine roles and their scores
+                            fine_roles = row.get("predicted_fine_margin", [])
+                            fine_scores = row.get("predicted_fine_with_scores", {})
+
+                            if isinstance(fine_roles, str):
+                                try:
+                                    fine_roles = ast.literal_eval(fine_roles)
+                                except:
+                                    fine_roles = []
+
+                            if isinstance(fine_scores, str):
+                                try:
+                                    fine_scores = ast.literal_eval(fine_scores)
+                                except:
+                                    fine_scores = {}
+
+                            # Format role + score for display
+                            formatted_roles = ", ".join(
+                            f"{role}: confidence = {fine_scores.get(role, '—')}" for role in fine_roles
+                                ) if fine_roles else "None"
 
 
-                                st.markdown(f"**{entity}** ({main_role}): _{formatted_roles}_")
+                            st.markdown(f"**{entity}** ({main_role}): _{formatted_roles}_")
 
 
                         
-                except Exception as e:
-                    st.error(f"Error running entity prediction: {str(e)}")
-            else:
-                st.warning("⚠️ Please enter some article text first.")
+            except Exception as e:
+                 st.error(f"Error running entity prediction: {str(e)}")
+        else:
+            st.warning("⚠️ Please enter some article text first.")
+
+            
+        st.markdown("---")
     
     #with col2:
     #    if st.button("💾 Save Predictions to File", help="Save current predictions to txt_predictions folder", key="save_main"):
@@ -426,7 +422,6 @@ if PREDICTION_AVAILABLE:
 else:
     st.warning(f"⚠️ **Entity Prediction Unavailable**: {prediction_error if prediction_error else 'Models not loaded'}")
 
-st.markdown("---")
 
 
 
@@ -584,24 +579,6 @@ if article and labels:
     ).interactive()
 
     st.altair_chart(chart, use_container_width=True)
-
-    # 4. Narrative classification
-    #st.header("7. Narrative Classification")
-    #df_n = predict_narrative_classification(article, threshold)
-    #st.dataframe(df_n)
-
-    # 5. Free-form narrative extraction
-    #st.header("8. Free-form Narrative Extraction")
-    #st.write(extract_narrative(article))
-
-
-    # 6. Bias identification & rewriting
-    #st.header("6. Bias Identification & Rewriting")
-    #mode_rw = st.radio("Rewrite mode", ["conservative","aggressive"])  
-    #suggestions = identify_bias_and_rewrite(article, mode_rw)
-    #for s in suggestions:
-    #    st.write(f"**Span:** {s['span']}  \n**Suggestion:** {s['suggestion']}")
-
     #openai_api_key = st.text_input("OpenAI API Key", type="password")
 
     ##st.write(role_sentences)
@@ -619,9 +596,6 @@ if article and labels:
         #st.warning("Please enter your OpenAI API key!", icon="⚠")
     #if submitted and openai_api_key.startswith("sk-"):
         #generate_response(text)
-
-
-
 
 
 st.markdown("---")
