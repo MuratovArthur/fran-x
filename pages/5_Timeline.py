@@ -33,28 +33,34 @@ def render_block(block, role_main, role_fine, count, color):
 
     with st.expander(f"{role_main} / {fine_display} ({count} instances)", expanded=True):
         for b in block:
-            fine_roles = b['fine_roles']
-            if isinstance(fine_roles, list):
-                fine_roles = [list(r.keys())[0] if isinstance(r, dict) else str(r) for r in fine_roles]
+            fine_roles = b['fine_roles']  # Expects a dict: {'Role': confidence}
+            
+            ##st.write(f"fine_roles: {fine_roles}")
+
+            # If fine_roles is a dict, extract the role and confidence
+            if isinstance(fine_roles, dict):
+                role, confidence = next(iter(fine_roles.items()))
             else:
-                fine_roles = [fine_roles]
+                role, confidence = str(fine_roles), 0.0
 
-            highlighted_sentence = highlight_fine_roles(b['sentence'], fine_roles, color)
+            highlighted_sentence = highlight_fine_roles(b['sentence'], [role], color)
 
-            highlighted_roles = ", ".join(
-                f"<span style='background-color:{color}; padding:2px 6px; border-radius:4px; font-weight:bold;'>{fr}</span>"
-                for fr in fine_roles if isinstance(fr, str)
+            ##st.write(highlighted_sentence)
+
+            highlighted_role_html = (
+                f"<span style='background-color:{color}; padding:2px 6px; border-radius:4px; font-weight:bold;'>{role}</span>"
             )
 
-            #st.write(role_fine)
+            ##st.write(highlighted_role_html, unsafe_allow_html=True)
 
             st.markdown(
                 f"""<div style='padding:10px; border-radius:5px; margin-bottom:5px; border: 1px solid #ddd;'>
-                <b>Fine Role(s):</b> {highlighted_roles}<br>
-                <b>Confidence:</b> {next(iter(role_fine[0].values()), 0.0):.2f}<br>
+                <b>Fine Role(s):</b> {highlighted_role_html}<br>
+                <b>Confidence:</b> {confidence:.2f}<br>
                 <b>Sentence:</b> {highlighted_sentence}</div>""",
                 unsafe_allow_html=True
             )
+
 
 
 

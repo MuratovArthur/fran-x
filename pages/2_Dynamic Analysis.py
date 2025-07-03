@@ -211,6 +211,7 @@ if distribution_data:
             # Combine
             chart = (bars + label_chart).properties(
                 width=500,
+                height=600,
                 title='Main Roles with Fine-Grained Role Segments'
             )
 
@@ -342,6 +343,9 @@ if distribution_data:
         graph_df['entity'] = graph_df['entity'].str.strip().str.title()
         graph_df['node_label'] = graph_df['entity'] + " (" + graph_df['fine_roles'] + ")"
 
+
+        graph_df = normalize_entities(graph_df, 90)
+
         # -- Multiselect for restrict_entities --
         restrict_entities = st.multiselect(
             "Include entities",
@@ -394,7 +398,7 @@ if distribution_data:
 
         node_colors = [ROLE_COLORS.get(G.nodes[n]["role"], "#cccccc") for n in G.nodes()]
 
-        if True:
+        if check_network_static:
             node_sizes = graph_df["node_label"].value_counts().to_dict()
 
             plt.figure(figsize=(14, 14))

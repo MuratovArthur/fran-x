@@ -99,7 +99,7 @@ def reformat_text_html_with_tooltips(text, labels_dict, hide_repeat=False, highl
 
             tooltip = (
                 f"Role: {main_role or 'Unknown'}<br>"
-                f"Confidence: {mention.get('confidence')}<br>"
+                #f"Confidence: {mention.get('confidence')}<br>"
                 f"Fine roles: {mention.get('fine_roles')}"
             )
 
