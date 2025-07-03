@@ -303,30 +303,39 @@ def format_sentence_with_spans(sentence_text, labels, threshold, hide_repeat=Tru
     spans = []
     sentence_lower = sentence_text.lower()
 
+    ##st.write(labels)
+
     for entity, mentions in labels.items():
         entity_key = entity.strip().lower()
 
         for mention in mentions:
-            if mention.get('confidence', 0) < threshold:
+            ##st.write(next(iter(mention.get('fine_roles', {}).values()), None))
+            if next(iter(mention.get('fine_roles', {}).values()), None) < threshold:
                 continue
             if mention.get('sentence', '').strip() != sentence_text.strip():
                 continue
+            ##st.write("2")
 
             mention_text = entity.strip()
             if not mention_text:
                 continue
+            ##st.write("3")
 
             match_start = sentence_lower.find(mention_text.lower())
             if match_start == -1:
                 continue
             match_end = match_start + len(mention_text)
+            ##st.write("4")
 
             main_role = mention.get('main_role', '')
             base_color = ROLE_COLORS.get(main_role, "#000000")
+            ##st.write("5")
 
             fine_roles_raw = mention.get('fine_roles', [])
             fine_roles_set = frozenset(r.strip().title() for r in fine_roles_raw)
             fine_roles_str = ", ".join(fine_roles_set)
+
+            ##st.write(f"mention:{mention}, start:{match_start}, main_role:{main_role}, fine_roles_str:{fine_roles_str}")
 
             is_repeated = fine_roles_set in seen_fine_roles[entity_key]
             seen_fine_roles[entity_key].add(fine_roles_set)

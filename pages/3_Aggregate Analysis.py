@@ -17,7 +17,7 @@ st.title("Aggregate Visualization")
 
 article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False)
 
-folder_path = 'chunk_data' if user_folder == None else 'user_articles'
+folder_path = 'chunk_data' if user_folder == None else 'user_articles/'+user_folder
 
 # --- Multiselect with rerun trigger ---
 file_options = list(load_file_names(folder_path))
@@ -26,8 +26,7 @@ if "selected_files" not in st.session_state:
 
 selected = st.sidebar.multiselect(
     "File(s)",
-    options=file_options,
-    default=st.session_state.selected_files
+    options=file_options
 )
 
 if set(selected) != set(st.session_state.selected_files):

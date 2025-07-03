@@ -3,7 +3,7 @@ import pandas as pd
 import altair as alt
 import re
 from sidebar import render_sidebar, ROLE_COLORS
-from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans
+from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans, row_per_role_entity_framing
 from streamlit.components.v1 import html as st_html
 import streamlit as st
 
@@ -21,6 +21,7 @@ def filter_labels_by_role(df_f, role_filter):
     Filters rows of the DataFrame by main_role values in role_filter.
     Returns a dictionary grouped by entity (if present) or a filtered DataFrame.
     """
+    ##st.write(df_f)
     if 'entity' in df_f.columns:
         filtered = {}
         grouped = df_f.groupby('entity')
@@ -50,7 +51,9 @@ article, labels, user_folder, threshold, role_filter, hide_repeat = render_sideb
 
 if labels == []:
     st.warning("Upload files in the Home page or switch to demo mode to access the functionality of this page.")
-#st.write(labels)
+
+##st.write(labels)
+
 st.text_area("Article", article, height=300)
 
 if article and labels:
@@ -69,6 +72,8 @@ if article and labels:
     # 3. Entity framing & timeline
 
     if not df_f.empty:
+        df_f = row_per_role_entity_framing(labels, threshold)
+
         df_f = df_f[df_f['main_role'].isin(role_filter)]
 
         st.header("3. Role Distribution & Transition Timeline")
@@ -114,14 +119,14 @@ if article and labels:
         st.altair_chart(chart, use_container_width=True)
 
 
-
+        ##st.write(df_f)
 
         #timeline
         timeline = alt.Chart(df_f).mark_bar().encode(
             x=alt.X('start:Q', title='Position'), x2='end:Q',
             y=alt.Y('entity:N', title='Entity'),
             color=alt.Color('main_role:N', scale=alt.Scale(domain=list(ROLE_COLORS.keys()), range=list(ROLE_COLORS.values()))),
-            tooltip=['entity','main_role','confidence']
+            tooltip=['entity','main_role', 'confidence']
         ).properties(height=200)
         st.altair_chart(timeline, use_container_width=True)
 
@@ -147,12 +152,14 @@ if article and labels:
     cols_per_row = 2 if multiple_roles else 1
 
     role_cols = [st.columns(cols_per_row) for _ in range((len(main_roles) + cols_per_row - 1) // cols_per_row)]
+                
+                
 
     for idx, role in enumerate(main_roles):
         col = role_cols[idx // cols_per_row][idx % cols_per_row]
 
         with col:
-            role_df = df_f[df_f['main_role'] == role][['sentence', 'fine_roles', 'confidence']].copy()
+            role_df = df_f[df_f['main_role'] == role][['sentence', 'fine_roles']].copy()
 
             #st.write(type(role_df))
             #role_sentences = role_df.drop_duplicates()
@@ -167,7 +174,8 @@ if article and labels:
             
             seen_fine_roles = None
             for sent in role_df['sentence'].unique():
-                html_block, seen_fine_roles = format_sentence_with_spans(sent, filter_labels_by_role(labels, role_filter), threshold, hide_repeat, False, seen_fine_roles)
+                df_f = predict_entity_framing(labels, threshold)
+                html_block, seen_fine_roles = format_sentence_with_spans(sent, filter_labels_by_role(df_f, role_filter), threshold, hide_repeat, False, seen_fine_roles)
                 st.markdown(html_block, unsafe_allow_html = True)
 
             fine_df = df_f[df_f['main_role'] == role].explode('fine_roles')
@@ -186,8 +194,9 @@ if article and labels:
                     st.markdown(f"**{selected_fine}** — {len(fine_sents)} sentence(s):")
                     seen_fine_roles = None
                     for s in fine_sents:
-                        html_block,seen_fine_roles = format_sentence_with_spans(s, filter_labels_by_role(labels, role_filter), threshold, hide_repeat, True, seen_fine_roles)
-                        st_html(html_block, height=100, scrolling=True)
+                        df_f = predict_entity_framing(labels, threshold)
+                        html_block,seen_fine_roles = format_sentence_with_spans(s, filter_labels_by_role(df_f, role_filter), threshold, hide_repeat, True, seen_fine_roles)
+                        st_html(html_block, height=150, scrolling=True)
             else: 
                 for fine_role in fine_roles:
                     st.write(f"All annotations of this main role are of type: {fine_role}")
@@ -195,7 +204,16 @@ if article and labels:
     # Confidence Distribution
     st.subheader("Histogram of Confidence Levels")
 
-    chart = alt.Chart(df_f).mark_bar().encode(
+    ##st.write(df_f)
+    df_roles = (
+        df_f['fine_roles']
+        .apply(pd.Series)
+        .melt(var_name='role', value_name='confidence')
+        .dropna()
+    )
+
+    # Create the chart
+    chart = alt.Chart(df_roles).mark_bar().encode(
         alt.X("confidence:Q", bin=alt.Bin(maxbins=20), title="Confidence"),
         alt.Y("count()", title="Frequency"),
         tooltip=['count()']

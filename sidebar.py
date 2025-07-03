@@ -1,7 +1,6 @@
 import streamlit as st
 import os
 from load_annotations import load_article, load_labels_stage2
-#from streamlit_theme import st_theme
 
 ROLE_COLORS = {
     "Protagonist": "#a1f4a1",
@@ -28,12 +27,9 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
     if "hide_repeat" not in st.session_state:
         st.session_state.hide_repeat = False
     if "threshold" not in st.session_state:
-        st.session_state.threshold = 0.35
+        st.session_state.threshold = 0.20
     if "role_filter" not in st.session_state:
         st.session_state.role_filter = list(ROLE_COLORS.keys())
-    #if "franx_theme" not in st.session_state:
-        #st.session_state.franx_theme = st_theme(key="franx_theme")
-
 
     # Sidebar widget
     if check_example:
@@ -49,10 +45,8 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
         st.session_state.hide_repeat = hide_repeat
         st.rerun()
 
-    threshold = st.sidebar.slider("Narrative confidence threshold", 0.0, 1.0, st.session_state.threshold, 0.01)
-    if threshold != st.session_state.threshold:
-        st.session_state.threshold = threshold
-        st.rerun()
+    new_threshold = st.sidebar.slider("Narrative confidence threshold", 0.0, 1.0, st.session_state.threshold, 0.01)
+    st.session_state.threshold = new_threshold
 
     role_filter = st.sidebar.multiselect(
         "Filter roles",
@@ -119,7 +113,7 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
                 #    threshold
                 #)
 
-                labels = load_labels_stage2(selected_file, 0.1)
+                labels = load_labels_stage2(selected_file, st.session_state.threshold)
                 ##st.write(labels)
 
                 ##st.write("sidebar.py")
@@ -127,6 +121,6 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
 
 
             elif not valid_files:
-                st.sidebar.warning("⚠️ No files found in the selected folder.")
+                st.sidebar.warning("No files found in the selected folder.")
 
-    return article, labels, user_folder, threshold, role_filter, hide_repeat
+    return article, labels, user_folder, new_threshold, role_filter, hide_repeat

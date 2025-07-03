@@ -1,6 +1,7 @@
 import streamlit as st
 from sidebar import render_sidebar, ROLE_COLORS
 from render_text import predict_entity_framing, normalize_entities
+import json
 
 st.set_page_config(page_title="FRaN-X", layout="wide")
 st.title("In-Depth Timeline")
@@ -45,10 +46,12 @@ def render_block(block, role_main, role_fine, count, color):
                 for fr in fine_roles if isinstance(fr, str)
             )
 
+            #st.write(role_fine)
+
             st.markdown(
                 f"""<div style='padding:10px; border-radius:5px; margin-bottom:5px; border: 1px solid #ddd;'>
                 <b>Fine Role(s):</b> {highlighted_roles}<br>
-                <b>Confidence:</b> {b['confidence']:.2f}<br>
+                <b>Confidence:</b> {next(iter(role_fine[0].values()), 0.0):.2f}<br>
                 <b>Sentence:</b> {highlighted_sentence}</div>""",
                 unsafe_allow_html=True
             )
@@ -62,10 +65,10 @@ if article and labels:
 
     #df_f = normalize_entities(df_f, 10)
 
-    df_f.sort_values(by=["entity", "start"], inplace=True)
+    df_f.sort_values(by=["entity", "start_offset"], inplace=True)
 
     ##st.write(df_f)
-    entity_order = df_f.groupby("entity")["start"].min().sort_values().index.tolist()
+    entity_order = df_f.groupby("entity")["start_offset"].min().sort_values().index.tolist()
 
     ##st.write(entity_order)
 
