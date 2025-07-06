@@ -8,7 +8,7 @@ st.set_page_config(page_title="FRaN-X", layout="wide")
 st.title("In-Depth Timeline")
 st.write("See how each entity changes its main role and fine grain role over time")
 
-article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False)
+article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False, False)
 
 if user_folder is None:
     # Demo mode

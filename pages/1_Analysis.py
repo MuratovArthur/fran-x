@@ -2,10 +2,11 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import re
-from sidebar import render_sidebar, ROLE_COLORS
+from sidebar import render_sidebar, ROLE_COLORS, load_file_names, load_article, load_labels_stage2
 from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans, row_per_role_entity_framing
 from streamlit.components.v1 import html as st_html
 import streamlit as st
+import os
 
 #from langchain_openai.chat_models import ChatOpenAI
 
@@ -47,7 +48,28 @@ st.title("FRaN-X: Entity Framing & Narrative Analysis")
 # Article input
 st.header("1. Article Input")
 
-article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar()
+article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False, True)
+
+if user_folder is None:
+    # Demo mode
+    folder_path = 'chunk_data'
+else:
+    # User mode
+    folder_path = os.path.join('user_articles', user_folder)
+
+# List files in the selected folder
+file_names = [f for f in load_file_names(folder_path) if f and not f.startswith('.')]
+if not file_names:
+    st.warning("No files found in the selected folder.")
+else:
+    selected_file = st.sidebar.selectbox("Select an article file", file_names)
+    article = load_article(os.path.join(folder_path, selected_file))
+    labels = load_labels_stage2(selected_file, threshold)
+
+
+
+
+#article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar()
 
 if labels == []:
     st.warning("Upload files in the Home page or switch to demo mode to access the functionality of this page.")
@@ -147,23 +169,13 @@ if article and labels:
 
     df_f = df_f[df_f['main_role'].isin(ROLE_COLORS)]
 
-    main_roles = sorted(df_f['main_role'].unique())
-    multiple_roles = len(main_roles) > 1
-    cols_per_row = 2 if multiple_roles else 1
-
-    role_cols = [st.columns(cols_per_row) for _ in range((len(main_roles) + cols_per_row - 1) // cols_per_row)]
-                
-                
+    main_roles = ['Antagonist', 'Innocent','Protagonist']  # fixed order
+    role_cols = st.columns(3)  # always 3 columns
 
     for idx, role in enumerate(main_roles):
-        col = role_cols[idx // cols_per_row][idx % cols_per_row]
-
+        col = role_cols[idx]
         with col:
             role_df = df_f[df_f['main_role'] == role][['sentence', 'fine_roles']].copy()
-
-            #st.write(type(role_df))
-            #role_sentences = role_df.drop_duplicates()
-
             st.markdown(
                 f"<div style='background-color:{ROLE_COLORS[role]}; "
                 f"padding: 8px; border-radius: 6px; font-weight:bold;'>"
@@ -171,60 +183,61 @@ if article and labels:
                 f"</div>",
                 unsafe_allow_html=True
             )
-            
             seen_fine_roles = None
             for sent in role_df['sentence'].unique():
                 df_f = predict_entity_framing(labels, threshold)
-                html_block, seen_fine_roles = format_sentence_with_spans(sent, filter_labels_by_role(df_f, role_filter), threshold, hide_repeat, False, seen_fine_roles)
-                st.markdown(html_block, unsafe_allow_html = True)
+                html_block, seen_fine_roles = format_sentence_with_spans(
+                    sent, filter_labels_by_role(df_f, role_filter), threshold, hide_repeat, False, seen_fine_roles
+                )
+                st.markdown(html_block, unsafe_allow_html=True)
 
             fine_df = df_f[df_f['main_role'] == role].explode('fine_roles')
             fine_df = fine_df[fine_df['fine_roles'].notnull() & (fine_df['fine_roles'] != '')]
             fine_roles = sorted(fine_df['fine_roles'].dropna().unique())
 
-            if fine_roles and len(fine_roles)>1:
+            if fine_roles and len(fine_roles) > 1:
                 selected_fine = st.selectbox(
                     f"Filter {role} by fine-grained role:",
                     ["Show all"] + fine_roles,
                     key=f"fine_{role}"
                 )
-
                 if selected_fine != "Show all":
                     fine_sents = fine_df[fine_df['fine_roles'] == selected_fine]['sentence'].drop_duplicates()
                     st.markdown(f"**{selected_fine}** — {len(fine_sents)} sentence(s):")
                     seen_fine_roles = None
                     for s in fine_sents:
                         df_f = predict_entity_framing(labels, threshold)
-                        html_block,seen_fine_roles = format_sentence_with_spans(s, filter_labels_by_role(df_f, role_filter), threshold, hide_repeat, True, seen_fine_roles)
+                        html_block, seen_fine_roles = format_sentence_with_spans(
+                            s, filter_labels_by_role(df_f, role_filter), threshold, hide_repeat, True, seen_fine_roles
+                        )
                         st_html(html_block, height=150, scrolling=True)
-            else: 
+            elif fine_roles:
                 for fine_role in fine_roles:
                     st.write(f"All annotations of this main role are of type: {fine_role}")
-
     # Confidence Distribution
     st.subheader("Histogram of Confidence Levels")
 
-    ##st.write(df_f)
-    df_roles = (
-        df_f['fine_roles']
-        .apply(pd.Series)
-        .melt(var_name='role', value_name='confidence')
-        .dropna()
-    )
+    if not df_f.empty and 'fine_roles' in df_f.columns and df_f['fine_roles'].notnull().any():
+        df_roles = (
+            df_f['fine_roles']
+            .apply(pd.Series)
+            .melt(var_name='role', value_name='confidence')
+            .dropna()
+        )
 
-    # Create the chart
-    chart = alt.Chart(df_roles).mark_bar().encode(
-        alt.X("confidence:Q", bin=alt.Bin(maxbins=20), title="Confidence"),
-        alt.Y("count()", title="Frequency"),
-        tooltip=['count()']
-    ).properties(
-        width=50,
-        height=400
-    ).interactive()
+        # Create the chart
+        chart = alt.Chart(df_roles).mark_bar().encode(
+            alt.X("confidence:Q", bin=alt.Bin(maxbins=20), title="Confidence"),
+            alt.Y("count()", title="Frequency"),
+            tooltip=['count()']
+        ).properties(
+            width=50,
+            height=400
+        ).interactive()
 
-    st.altair_chart(chart, use_container_width=True)
-
-
+        st.altair_chart(chart, use_container_width=True)
+    else:
+        st.info("No confidence data to display. Please select at least one role in the sidebar.")
 
 st.markdown("---")
 st.markdown("*UGRIP 2025 FRaN-X Team* ")

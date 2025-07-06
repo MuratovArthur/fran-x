@@ -8,7 +8,7 @@ st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout
 st.title("Search")
 st.write("Select File(s) in the sidebar to get started")
 
-article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False)
+article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False, False)
 
 folder_path = 'chunk_data' if user_folder == None else 'user_articles'
 
@@ -23,9 +23,12 @@ files = st.sidebar.multiselect(
 
 word = st.text_input("Search for: ")
 
+found = False
+
 for f in files:
     article = load_article(f'{folder_path}/{f}').strip()
     if word.lower() in article.lower():
+        found = True
         labels = load_labels_stage2(
             f,
             threshold
@@ -35,8 +38,10 @@ for f in files:
 
         with st.expander("Article", expanded=False):
             html = reformat_text_html_with_tooltips(article, labels, hide_repeat, word)
-            st.components.v1.html(html, height=600, scrolling = True)     
+            st.components.v1.html(html, height=600, scrolling = True)  
 
+if files and word and not found:
+    st.warning("No such word found in the selected files.")
 
 st.markdown("---")
 st.markdown("*UGRIP 2025 FRaN-X Team* ")

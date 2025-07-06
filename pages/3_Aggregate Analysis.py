@@ -16,7 +16,7 @@ st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout
 st.title("Aggregate Visualization")
 st.write("Select File(s) in the sidebar to get started")
 
-article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False)
+article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False, False)
 
 folder_path = 'chunk_data' if user_folder == None else 'user_articles/'+user_folder
 

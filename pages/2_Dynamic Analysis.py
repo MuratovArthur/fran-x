@@ -36,9 +36,9 @@ def generate_shades(base_hex, n):
 
 st.set_page_config(page_title="FRaN-X", layout="wide")
 
-# Sidebar
-article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(False)
 
+# Sidebar
+article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(False, False, False, False, show_hide_repeat=False)
 # Title Row with Dynamic Column Buttons
 title_col, spacer, add_col, remove_col = st.columns([3, 5, 1, 1])
 with title_col:
@@ -57,52 +57,80 @@ column_count = st.session_state.get("column_count", 1)
 
 # Prepare file options
 # Determine which folder to use for articles
-if st.session_state.get("use_example", False):
-    article_folder = 'chunk_data'
-    file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
-else:
-    # If user_folder is not set, prompt for session selection
-    session_names = [f for f in load_file_names('user_articles') if f and not f.startswith('.')]
-    if not user_folder or user_folder not in session_names:
-        user_folder = st.selectbox("Session Number", session_names)
-    article_folder = os.path.join('user_articles', user_folder)
-    file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
+# Determine which folder to use for articles
+#if st.session_state.get("use_example", False):
+#    article_folder = 'chunk_data'
+#    file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
+#else:
+#    article_folder = os.path.join('user_articles', user_folder)
+#    file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
+
+#file_options = ["Select a file"] + file_names
 
 
-
-file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
+#file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
 ##st.write(file_names)
-file_options = ["Select a file"] + file_names
+#file_options = ["Select a file"] + file_names
 
 # Store role distributions for each article
 distribution_data = []
 
 # Render dynamic columns
+# Render dynamic columns
+use_example = st.session_state.get("use_example", False)
+default_session_id = st.session_state.get("session_id", "")
+
+# Reset session_id inputs if demo mode is turned off (do this ONCE, not inside the columns loop)
+if not use_example:
+    for idx in range(column_count):
+        key = f"session_id_input_{idx}"
+        if st.session_state.get(key, None) in ("", None):
+            st.session_state[key] = default_session_id
+
 columns = st.columns(column_count)
+session_ids_per_column = {}
 for i, col in enumerate(columns):
     with col:
         st.markdown(f"#### Article {i + 1}")
-        selected_file = st.selectbox(f"Choose a file ({i + 1})", file_options, key=f"file_{i}")
+
+        session_id = st.text_input(
+            f"Session ID (type to restore or start a new session) [{i+1}]",
+            value=st.session_state.get(f"session_id_input_{i}", default_session_id),
+            key=f"session_id_input_{i}",
+            disabled=use_example  # Disable if demo mode is on
+        ).strip()
+        session_ids_per_column[i] = session_id
+
+        # Always use chunk_data in demo mode, otherwise use session_id
+        if use_example or not session_id:
+            article_folder = 'chunk_data'
+        else:
+            article_folder = os.path.join('user_articles', session_id)
         
+        file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
+        file_options = ["Select a file"] + file_names
+
+        selected_file = st.selectbox(
+            f"Choose a file ({i + 1})",
+            file_options,
+            key=f"file_{i}"
+        )
+
         if selected_file != "Select a file":
             article_text = load_article(f"{article_folder}/{selected_file}")
             labels = load_labels_stage2(selected_file, threshold)
-            
 
             html = reformat_text_html_with_tooltips(article_text, labels, hide_repeat)
-            line_count = article_text.count("\n") + 1
-            st.components.v1.html(html, height=800, scrolling = True)
+            st.components.v1.html(html, height=800, scrolling=True)
 
             # Role distribution collection
             df_f = predict_entity_framing(labels, threshold)
-
             df_f = df_f[df_f['main_role'].isin(role_filter)]
             if not df_f.empty:
                 counts = df_f['main_role'].value_counts().reset_index()
                 counts.columns = ['main_role', 'count']
                 counts['article'] = selected_file
                 distribution_data.append(counts)
-
 
 # Sidebar Toggles
 st.sidebar.header(" Data Visualization")
@@ -152,7 +180,12 @@ if distribution_data:
     all_detailed_data = []
     for i, col in enumerate(columns):
         selected_file = st.session_state.get(f"file_{i}")
+        session_id = session_ids_per_column.get(i, "")
         if selected_file and selected_file != "Select a file":
+            if use_example or not session_id:
+                article_folder = 'chunk_data'
+            else:
+                article_folder = os.path.join('user_articles', session_id)
             article_text = load_article(f"{article_folder}/{selected_file}")
             labels = load_labels_stage2(selected_file, threshold)
             df_detail = predict_entity_framing(labels, threshold)
