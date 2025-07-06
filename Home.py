@@ -384,7 +384,10 @@ if PREDICTION_AVAILABLE:
 
                         
             except Exception as e:
-                 st.error(f"Error running entity prediction: {str(e)}")
+                if str(e) == "No columns to parse from file":
+                    st.warning("No annotations made by the model. Please try with a different or longer article.")
+                else:
+                    st.error(f"Error running entity prediction: {str(e)}")
         else:
             st.warning("⚠️ Please enter some article text first.")
 
