@@ -15,6 +15,7 @@ import ast
 from mode_tc_utils.preprocessing import convert_prediction_txt_to_csv
 from mode_tc_utils.tc_inference import run_role_inference
 from bs4 import BeautifulSoup
+import secrets
 
 # Add the seq directory to the path to import predict.py
 sys.path.append(str(Path(__file__).parent / 'seq'))
@@ -200,13 +201,41 @@ def filter_labels_by_role(labels, role_filter):
 st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout="wide")
 st.title("FRaN-X: Entity Framing & Narrative Analysis")
 
-_, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, False, True, True)
+#_, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(False, False, False, False, False)
 article = ""
 
+def generate_unique_session_id(base_folder="user_articles", length=8):
+    while True:
+        session_id = secrets.token_hex(length // 2)
+        session_folder = os.path.join(base_folder, session_id)
+        if not os.path.exists(session_folder):
+            return session_id
+
+
+# Generate or retrieve a unique session ID for the user
+if "session_id" not in st.session_state:
+    st.session_state.session_id = generate_unique_session_id()
+    #user_folder = st.session_state.session_id
+    #st.info(f"Your session ID: `{user_folder}`\n\nNote this ID to return to your files later.\nℹ️ Your session ID keeps your work separate from others, but it is not secure. Do not upload sensitive or confidential information.")
+    
+
+user_folder = st.session_state.session_id
+
+
+
+# Always show the session ID info
+st.info(
+    f"Your session ID: `{user_folder}`\n\n"
+    "Note this ID to return to your files later.\n"
+    "ℹ️ Your session ID keeps your work separate from others, but it is not secure. "
+    "Do not upload sensitive or confidential information."
+)
+st.sidebar.info(f"Your session ID: `{user_folder}`")
 # Article input
 st.header("1. Article Input")
 
 filename_input = st.text_input("Filename (without extension)")
+
 
 
 mode = st.radio("Input mode", ["Paste Text","URL"])
@@ -216,20 +245,20 @@ if mode == "Paste Text":
 
 else:
     url = st.text_input("Article URL")
-    article = ""
-    if url:
-        try:
-            with st.spinner("Fetching article from URL..."):
-                resp = requests.get(url)
-                soup = BeautifulSoup(resp.content, 'html.parser')
-                article = '\n'.join(p.get_text() for p in soup.find_all('p'))
+    #article = ""
+    #if url:
+    #    try:
+    #        with st.spinner("Fetching article from URL..."):
+     #           resp = requests.get(url)
+      #          soup = BeautifulSoup(resp.content, 'html.parser')
+       #         article = '\n'.join(p.get_text() for p in soup.find_all('p'))
             
-            if article.strip():
-                st.text_area("Fetched Article", value=article, height=200, disabled=True)
-            else:
-                st.warning("Could not extract meaningful content from the URL.")
-        except Exception as e:
-            st.error(f"Error fetching article from URL: {str(e)}")
+          #  if article.strip():
+          #      st.text_area("Fetched Article", value=article, height=200, disabled=True)
+          #  else:
+          #      st.warning("Could not extract meaningful content from the URL. Please check a different URL or paste the text directly.")
+        #except Exception as e:
+         #   st.error("Sorry, we couldn't fetch or process the article from this URL. Please check that the link is correct and points to a public news article, or try pasting the text instead.")
 
 
 
@@ -248,19 +277,41 @@ if PREDICTION_AVAILABLE:
     
     if st.button("Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
 
-        if not filename_input:
-            st.warning("⚠️ Please enter a filename for the article before running predictions.")
-            st.stop()
+        if mode == "URL":
+            if not url or not url.strip():
+                st.warning("⚠️ Please enter a valid URL before running predictions.")
+                st.stop()
+            try:
+                with st.spinner("Fetching article from URL..."):
+                    resp = requests.get(url)
+                    soup = BeautifulSoup(resp.content, 'html.parser')
+                    article = '\n'.join(p.get_text() for p in soup.find_all('p'))
+                if not article.strip():
+                    st.warning("Could not extract meaningful content from the URL. Please check a different URL or paste the text directly.")
+                    st.stop()
+            except Exception:
+                st.error("Sorry, we couldn't fetch or process the article from this URL. Please check that the link is correct and points to a public news article, or try pasting the text instead.")
+                st.stop()
+
+        elif mode == "Paste Text":
+
+            if not filename_input:
+                st.warning("⚠️ Please enter a filename for the article before running predictions.")
+                st.stop()
         # Generate filename
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"{filename_input}_{timestamp}_predictions.csv"
+        #filename = f"{filename_input}_{timestamp}_predictions.csv"
 
+
+        #filename_wo_pred = f"{filename_input}_{timestamp}"
+        #a = Path("user_articles") / user_folder / filename_wo_pred
+        #a.write_text(article, encoding='utf-8')
 
         filename_wo_pred = f"{filename_input}_{timestamp}"
-        a = Path("user_articles") / user_folder / filename_wo_pred
-        a.write_text(article, encoding='utf-8')
-
+        user_dir = Path("user_articles") / user_folder
+        user_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+        
 
 
         if article and article.strip():
@@ -279,6 +330,8 @@ if PREDICTION_AVAILABLE:
                         output_filename="current_article_preds.txt",
                         output_dir=predictions_dir
                     )
+
+                
                         
                     # convert txt output of stage 1 into csv and prepare for text classification model 2
                     # also extracts context
@@ -320,6 +373,8 @@ if PREDICTION_AVAILABLE:
                     
                     # Show detailed predictions with confidence scores
                     if predictions:
+                        a = user_dir / filename_wo_pred
+                        a.write_text(article, encoding='utf-8')
                         with st.expander("🎯 Detected Entities", expanded=True):
                             # Get all entity spans with confidence scores ONCE (not in the loop!)
                             entity_spans = NER_MODEL.predict(article, return_format='spans')
@@ -393,8 +448,12 @@ if PREDICTION_AVAILABLE:
                  st.error("No entities found in the article. Please upload a longer or different article.")
         else:
             if not article or not article.strip():
-                st.warning("⚠️ Please enter some article text first.")
-            #else:
+                if mode == "Paste Text":
+                    st.warning("⚠️ Please enter some article text first.")
+                
+                else:
+                    st.warning("⚠️ Please enter a valid URL or paste article as text.")
+                    #else:
             #st.warning("⚠️ Please enter some article text first.")
 
             
