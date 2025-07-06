@@ -208,6 +208,7 @@ st.header("1. Article Input")
 
 filename_input = st.text_input("Filename (without extension)")
 
+
 mode = st.radio("Input mode", ["Paste Text","URL"])
 if mode == "Paste Text":
     article = st.text_area("Article", value=article if article else "", height=300, help="Paste or type your article text here. You can also load articles from the sidebar.")    
@@ -246,6 +247,10 @@ if PREDICTION_AVAILABLE:
     # Always show buttons if prediction is available
     
     if st.button("Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
+
+        if not filename_input:
+            st.warning("⚠️ Please enter a filename for the article before running predictions.")
+            st.stop()
         # Generate filename
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -309,87 +314,87 @@ if PREDICTION_AVAILABLE:
                     output_path = os.path.join(predictions_dir, "tc_output.csv")
                     combined_df.to_csv(output_path, index=False, encoding="utf-8")
 
-                    st.success(f"✅ tc_output.csv updated with {len(new_stage2_df)} new rows ({len(combined_df)} total)")
+                    #st.success(f"✅ tc_output.csv updated with {len(new_stage2_df)} new rows ({len(combined_df)} total)")
                     
-                st.success(f"✅ Entity analysis complete! Found {len(predictions)} entities ({non_unknown_count} with specific roles)")
+                    st.success(f"✅ Entity analysis complete! Found {len(predictions)} entities ({non_unknown_count} with specific roles)")
                     
-                # Show detailed predictions with confidence scores
-                if predictions:
-                    with st.expander("🎯 Detected Entities", expanded=True):
-                        # Get all entity spans with confidence scores ONCE (not in the loop!)
-                        entity_spans = NER_MODEL.predict(article, return_format='spans')
-                            
-                        for i, pred in enumerate(predictions):
-                            text_id, entity, start, end, role = pred.split('\t')
+                    # Show detailed predictions with confidence scores
+                    if predictions:
+                        with st.expander("🎯 Detected Entities", expanded=True):
+                            # Get all entity spans with confidence scores ONCE (not in the loop!)
+                            entity_spans = NER_MODEL.predict(article, return_format='spans')
                                 
-                            # Find matching span for this entity
-                            confidence_score = None
-                            for span in entity_spans:
-                                if span['start'] == int(start) and span['end'] == int(end):
-                                    if role == "Protagonist":
-                                        confidence_score = span['prob_protagonist']
-                                    elif role == "Antagonist":
-                                        confidence_score = span['prob_antagonist']
-                                    elif role == "Innocent":
-                                        confidence_score = span['prob_innocent']
-                                    elif role == "Unknown":
-                                        confidence_score = span['prob_unknown']
-                                    break
-                                
-                            confidence_text = f" (confidence: {confidence_score:.3f})" if confidence_score is not None else ""
-                                
-                            # Color code by role
-                            if role == "Protagonist":
-                                st.markdown(f"🟢 **{entity}** - {role}{confidence_text} (position {start}-{end})")
-                            elif role == "Antagonist":
-                                st.markdown(f"🔴 **{entity}** - {role}{confidence_text} (position {start}-{end})")
-                            elif role == "Innocent":
-                                st.markdown(f"🔵 **{entity}** - {role}{confidence_text} (position {start}-{end})")
-                            else:
-                                st.markdown(f"⚪ **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                            for i, pred in enumerate(predictions):
+                                text_id, entity, start, end, role = pred.split('\t')
+                                    
+                                # Find matching span for this entity
+                                confidence_score = None
+                                for span in entity_spans:
+                                    if span['start'] == int(start) and span['end'] == int(end):
+                                        if role == "Protagonist":
+                                            confidence_score = span['prob_protagonist']
+                                        elif role == "Antagonist":
+                                            confidence_score = span['prob_antagonist']
+                                        elif role == "Innocent":
+                                            confidence_score = span['prob_innocent']
+                                        elif role == "Unknown":
+                                            confidence_score = span['prob_unknown']
+                                        break
+                                    
+                                confidence_text = f" (confidence: {confidence_score:.3f})" if confidence_score is not None else ""
+                                    
+                                # Color code by role
+                                if role == "Protagonist":
+                                    st.markdown(f"🟢 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                                elif role == "Antagonist":
+                                    st.markdown(f"🔴 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                                elif role == "Innocent":
+                                    st.markdown(f"🔵 **{entity}** - {role}{confidence_text} (position {start}-{end})")
+                                else:
+                                    st.markdown(f"⚪ **{entity}** - {role}{confidence_text} (position {start}-{end})")
 
-                else:
-                    st.info("No entities detected in the article.")
+                    else:
+                        st.info("No entities detected in the article.")
 
-                if not new_stage2_df.empty:
-                    with st.expander("🧠 Fine-Grained Role Predictions", expanded=True):
-                        for _, row in new_stage2_df.iterrows():
-                            entity = row.get("entity_mention", "N/A")
-                            main_role = row.get("p_main_role", "N/A")
+                    if not new_stage2_df.empty:
+                        with st.expander("🧠 Fine-Grained Role Predictions", expanded=True):
+                            for _, row in new_stage2_df.iterrows():
+                                entity = row.get("entity_mention", "N/A")
+                                main_role = row.get("p_main_role", "N/A")
 
-                            # Parse list of fine roles and their scores
-                            fine_roles = row.get("predicted_fine_margin", [])
-                            fine_scores = row.get("predicted_fine_with_scores", {})
+                                # Parse list of fine roles and their scores
+                                fine_roles = row.get("predicted_fine_margin", [])
+                                fine_scores = row.get("predicted_fine_with_scores", {})
 
-                            if isinstance(fine_roles, str):
-                                try:
-                                    fine_roles = ast.literal_eval(fine_roles)
-                                except:
-                                    fine_roles = []
+                                if isinstance(fine_roles, str):
+                                    try:
+                                        fine_roles = ast.literal_eval(fine_roles)
+                                    except:
+                                        fine_roles = []
 
-                            if isinstance(fine_scores, str):
-                                try:
-                                    fine_scores = ast.literal_eval(fine_scores)
-                                except:
-                                    fine_scores = {}
+                                if isinstance(fine_scores, str):
+                                    try:
+                                        fine_scores = ast.literal_eval(fine_scores)
+                                    except:
+                                        fine_scores = {}
 
-                            # Format role + score for display
-                            formatted_roles = ", ".join(
-                            f"{role}: confidence = {fine_scores.get(role, '—')}" for role in fine_roles
-                                ) if fine_roles else "None"
+                                # Format role + score for display
+                                formatted_roles = ", ".join(
+                                f"{role}: confidence = {fine_scores.get(role, '—')}" for role in fine_roles
+                                    ) if fine_roles else "None"
 
 
-                            st.markdown(f"**{entity}** ({main_role}): _{formatted_roles}_")
+                                st.markdown(f"**{entity}** ({main_role}): _{formatted_roles}_")
 
 
                         
             except Exception as e:
-                if str(e) == "No columns to parse from file":
-                    st.warning("No annotations made by the model. Please try with a different or longer article.")
-                else:
-                    st.error(f"Error running entity prediction: {str(e)}")
+                 st.error("No entities found in the article. Please upload a longer or different article.")
         else:
-            st.warning("⚠️ Please enter some article text first.")
+            if not article or not article.strip():
+                st.warning("⚠️ Please enter some article text first.")
+            #else:
+            #st.warning("⚠️ Please enter some article text first.")
 
             
         st.markdown("---")
@@ -604,3 +609,4 @@ if article and labels:
 
 st.markdown("---")
 st.markdown("*UGRIP 2025 FRaN-X Team* ")
+
