@@ -106,6 +106,12 @@ for i, col in enumerate(columns):
             article_folder = 'chunk_data'
         else:
             article_folder = os.path.join('user_articles', session_id)
+
+        if not os.path.exists(article_folder) or not any(
+            f for f in os.listdir(article_folder) if not f.startswith('.')
+        ):
+            st.warning("⚠️ This session does not exist or contains no files.")
+            continue  # Skip the rest of the column if no files
         
         file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
         file_options = ["Select a file"] + file_names
