@@ -278,6 +278,9 @@ if PREDICTION_AVAILABLE:
     if st.button("Run Entity Predictions", help="Analyze entities in the current article", key="predict_main"):
 
         if mode == "URL":
+            if not filename_input:
+                st.warning("⚠️ Please enter a filename for the article before running predictions.")
+                st.stop()
             if not url or not url.strip():
                 st.warning("⚠️ Please enter a valid URL before running predictions.")
                 st.stop()
