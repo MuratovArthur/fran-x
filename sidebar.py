@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 from load_annotations import load_article, load_labels_stage2
+import secrets
 
 ROLE_COLORS = {
     "Protagonist": "#a1f4a1",
@@ -16,7 +17,21 @@ def load_file_names(folder_path):
     files = os.listdir(folder_path)
     return tuple(files)
 
-def render_sidebar(choose_user_folder = True, check_example = True, new_session = False, choose_user_file = True):
+def generate_unique_session_id(base_folder="user_articles", length=8):
+    while True:
+        session_id = secrets.token_hex(length // 2)
+        session_folder = os.path.join(base_folder, session_id)
+        if not os.path.exists(session_folder):
+            return session_id
+
+def generate_unique_session_id(base_folder="user_articles", length=8):
+    while True:
+        session_id = secrets.token_hex(length // 2)
+        session_folder = os.path.join(base_folder, session_id)
+        if not os.path.exists(session_folder):
+            return session_id
+
+def render_sidebar(choose_user_folder=True, check_example=True, new_session=False, choose_user_file=True,show_hide_repeat=True):
     user_folder = None
 
     st.sidebar.header("Settings")
@@ -40,10 +55,13 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
     else:
         use_example = False
 
-    hide_repeat = st.sidebar.checkbox("Make repeat annotations transparent", value=st.session_state.hide_repeat)
-    if hide_repeat != st.session_state.hide_repeat:
-        st.session_state.hide_repeat = hide_repeat
-        st.rerun()
+    if show_hide_repeat:
+        hide_repeat = st.sidebar.checkbox("Make repeat annotations transparent", value=st.session_state.hide_repeat)
+        if hide_repeat != st.session_state.hide_repeat:
+            st.session_state.hide_repeat = hide_repeat
+            st.rerun()
+    else:
+        hide_repeat = st.session_state.hide_repeat
 
     new_threshold = st.sidebar.slider("Narrative confidence threshold", 0.0, 1.0, st.session_state.threshold, 0.01)
     st.session_state.threshold = new_threshold
@@ -53,38 +71,29 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
         options=list(ROLE_COLORS.keys()),
         default=st.session_state.role_filter
     )
-    #if role_filter != st.session_state.role_filter:
-        #st.session_state.role_filter = role_filter
-        #st.rerun()
 
     article = ""
     labels = []
 
     folder_path = 'chunk_data' if use_example else 'user_articles'
-    if choose_user_folder:
-        if folder_path == "user_articles":
-            if new_session:
-                user_folder = st.sidebar.selectbox("User Folder", ["New Session"] + os.listdir(folder_path))
-            else:
-                user_folder = st.sidebar.selectbox("User Folder", os.listdir(folder_path))
-                
-            if user_folder == "New Session":
-                user_number = str(int(st.sidebar.text_input("Input a number:", 0)))
-                
-                if user_number.strip():
-                    user_folder = f"session_{user_number.strip()}"
-                    full_user_path = os.path.join(folder_path, user_folder)
-                    os.makedirs(full_user_path, exist_ok=True)
-                    folder_path = full_user_path
-                else:
-                    st.stop()
-            else:
-                folder_path = os.path.join(folder_path, user_folder)
+    if choose_user_folder and not use_example:
+        # Allow user to enter or restore their session ID
+        session_id = st.sidebar.text_input(
+            "Enter your session ID to restore your files, or leave blank for a new session:",
+            value=st.session_state.get("session_id", "")
+        ).strip()
+        if not session_id:
+            # Generate a new session ID if none entered
+            session_id = generate_unique_session_id()
+        st.session_state.session_id = session_id
+        user_folder = session_id
+        folder_path = os.path.join("user_articles", user_folder)
+        os.makedirs(folder_path, exist_ok=True)
+        st.sidebar.markdown(f"**Session ID:** `{user_folder}`")
 
         if choose_user_file:
             file_names = load_file_names(folder_path)
             valid_files = [f for f in file_names if f and not f.startswith('.')]
-            ##st.write(valid_files)
             file_options = ["Select a file"] + valid_files
 
             if "article_name" not in st.session_state or st.session_state.article_name not in valid_files:
@@ -106,10 +115,7 @@ def render_sidebar(choose_user_folder = True, check_example = True, new_session 
                 file_path = os.path.join(folder_path, selected_file)
                 article = load_article(file_path)
                 labels = load_labels_stage2(selected_file, st.session_state.threshold)
-
-
-
             elif not valid_files:
                 st.sidebar.warning("No files found in the selected folder.")
 
-    return article, labels, user_folder, new_threshold, role_filter, hide_repeat
+    return article, labels, user_folder, new_threshold, role_filter, st.session_state.hide_repeat
