@@ -56,17 +56,17 @@ st.write("Select one or more articles to compare their role distributions and co
 column_count = st.session_state.get("column_count", 1)
 
 # Prepare file options
-use_example = st.session_state.get("use_example", False)
-threshold = st.session_state.get("threshold", 0.5)
-article_folder = 'chunk_data' if use_example else 'user_articles'
-label_folder = 'article_predictions'
-
-if user_folder == None:
+# Determine which folder to use for articles
+if st.session_state.get("use_example", False):
     article_folder = 'chunk_data'
+    file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
 else:
+    # If user_folder is not set, prompt for session selection
     session_names = [f for f in load_file_names('user_articles') if f and not f.startswith('.')]
-    user_folder = st.selectbox("Session Number", session_names)
+    if not user_folder or user_folder not in session_names:
+        user_folder = st.selectbox("Session Number", session_names)
     article_folder = os.path.join('user_articles', user_folder)
+    file_names = [f for f in load_file_names(article_folder) if f and not f.startswith('.')]
 
 
 
