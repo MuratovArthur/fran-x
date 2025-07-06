@@ -38,7 +38,7 @@ st.set_page_config(page_title="FRaN-X", layout="wide")
 
 
 # Sidebar
-article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(False, False, False, False, show_hide_repeat=False)
+article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False)
 # Title Row with Dynamic Column Buttons
 title_col, spacer, add_col, remove_col = st.columns([3, 5, 1, 1])
 with title_col:
