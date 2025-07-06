@@ -79,7 +79,7 @@ def render_sidebar(choose_user_folder=True, check_example=True, new_session=Fals
     if choose_user_folder and not use_example:
         # Allow user to enter or restore their session ID
         session_id = st.sidebar.text_input(
-            "Enter your session ID to restore your files, or leave blank for a new session:",
+            "You may enter your saved session ID to restore your files from a previous session. If not, use the default generated session ID from the Home page.",
             value=st.session_state.get("session_id", "")
         ).strip()
         if not session_id:
