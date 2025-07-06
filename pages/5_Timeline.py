@@ -110,9 +110,15 @@ if article and labels:
             main = row["main_role"]
             fine = row["fine_roles"] if isinstance(row["fine_roles"], list) else [row["fine_roles"]]
 
-            if (main, fine) != (prev_main, prev_fine) and prev_main is not None:
-                # Insert role change indicator
+            curr_fine_label = list(fine[0].keys())[0] if fine else None
+            prev_fine_label = list(prev_fine[0].keys())[0] if prev_fine else None
 
+            # Check if both main and fine role labels have changed
+            if (
+                curr_fine_label != prev_fine_label and
+                prev_main is not None and prev_fine is not None
+            ):
+                # Insert role change indicator
                 color = ROLE_COLORS.get(prev_main, "#ccc")
                 render_block(block, prev_main, prev_fine, count, color)
 
