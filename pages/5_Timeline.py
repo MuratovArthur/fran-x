@@ -1,13 +1,31 @@
 import streamlit as st
-from sidebar import render_sidebar, ROLE_COLORS
+from sidebar import render_sidebar, ROLE_COLORS, load_file_names, load_article, load_labels_stage2
 from render_text import predict_entity_framing, normalize_entities
 import json
+import os
 
 st.set_page_config(page_title="FRaN-X", layout="wide")
 st.title("In-Depth Timeline")
 st.write("See how each entity changes its main role and fine grain role over time")
 
-article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar()
+article, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(True, True, False, False)
+
+if user_folder is None:
+    # Demo mode
+    folder_path = 'chunk_data'
+else:
+    # User mode
+    folder_path = os.path.join('user_articles', user_folder)
+
+# List files in the selected folder
+file_names = [f for f in load_file_names(folder_path) if f and not f.startswith('.')]
+if not file_names:
+    st.warning("No files found in the selected folder.")
+else:
+    selected_file = st.sidebar.selectbox("Select an article file", file_names)
+    article = load_article(os.path.join(folder_path, selected_file))
+    labels = load_labels_stage2(selected_file, threshold)
+
 
 def highlight_fine_roles(sentence, roles, color):
    if not isinstance(roles, list):
