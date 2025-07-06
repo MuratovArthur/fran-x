@@ -20,7 +20,7 @@ else:
 # List files in the selected folder
 file_names = [f for f in load_file_names(folder_path) if f and not f.startswith('.')]
 if not file_names:
-    st.warning("No files found in the selected folder.")
+    st.sidebar.warning("No files found in the selected folder.")
 else:
     selected_file = st.sidebar.selectbox("Select an article file", file_names)
     article = load_article(os.path.join(folder_path, selected_file))
