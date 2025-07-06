@@ -43,14 +43,16 @@ st.write("Most automated media‑analysis pipelines stop at detecting who is men
 
 st.markdown("#### Pages")
 
-st.write("Better understand the capabilites and features of the website by using the example article dataset or upload your own articles through the **Upload Page**.")
+st.markdown("""
 
-st.write("Use the **Home** and **Dynamic Compare Page** to look into 1 article or up to 4 articles at once respectively.")
+- **Home:** Input an article by pasting text or providing a URL. Specify a filename and process the article to generate structured lists of predicted entities and their roles.
+- **Analysis:** View annotated articles with entities color-coded by their main roles and fine-grained roles displayed alongside. Hovering over entities reveals metadata, including confidence scores. Users can toggle repeated annotations, adjust a confidence threshold slider, and extract all sentences for a specific label to compare entity characterization across contexts.
+- **Dynamic Analysis:** Load and compare up to four articles side by side to examine how different media outlets frame the same event or entity. This enables users to understand framing variations across sources.
+- **Aggregate Analysis:** Explore aggregate-level insights through a network graph connecting entities and their roles across multiple documents. Users can filter nodes and edges by entity or document, and interactively manipulate the graph for deeper analysis.
+- **Search:** Select one or more processed articles and search for specific words or phrases. All matches are highlighted within the article context, enabling quick localization of entities or terms of interest.
+- **Timeline:** Visualize the evolution of entity roles over time. For each selected entity, view the sequence of fine-grained roles, confidence scores, and context sentences. The system highlights transitions in role assignments for multiple entities.
 
-st.write("See the annotations grouped by their respective entity over the course of an article and easily find when the role of an entity changes on the **Timeline Page**.")
-
-st.write("Highlight keywords found in a set of articles in the **Search Page**.")
-
+""")
 
 st.markdown("#### Annotations and Taxonomy")
 
