@@ -1,13 +1,9 @@
-print("🔍 IMPORT DEBUG: Starting imports...")
-
 import streamlit as st
 import pandas as pd
 import altair as alt
 import requests
 import datetime
 import re
-print("🔍 IMPORT DEBUG: Basic imports done...")
-
 from sidebar import render_sidebar, ROLE_COLORS
 from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans
 from streamlit.components.v1 import html as st_html
@@ -21,11 +17,9 @@ from mode_tc_utils.tc_inference import run_role_inference
 from bs4 import BeautifulSoup
 import secrets
 from dotenv import load_dotenv
-print("🔍 IMPORT DEBUG: All imports completed...")
 
 # Load environment variables
 load_dotenv()
-print("🔍 IMPORT DEBUG: Environment variables loaded...")
 
 # Add the seq directory to the path to import predict.py
 sys.path.append(str(Path(__file__).parent / 'seq'))
@@ -37,13 +31,9 @@ sys.path.append(str(Path(__file__).parent / 'seq'))
 @st.cache_resource
 def load_ner_model():
     """Load the NER model once and cache it."""
-    print("🔍 NER FUNCTION DEBUG: Function called...")
-    try:    
-        print("🔍 NER FUNCTION DEBUG: Importing torch...")
+    try:
         import torch
-        print("🔍 NER FUNCTION DEBUG: Importing DebertaV3NerClassifier...")
         from src.deberta import DebertaV3NerClassifier
-        print("🔍 NER FUNCTION DEBUG: Importing huggingface_hub...")
         from huggingface_hub import login
         
         # Authenticate with HF token from Streamlit secrets or environment
@@ -80,14 +70,11 @@ def load_ner_model():
             print(f"🔐 NER DEBUG: Token first 10 chars: {hf_token[:10]}")
             print(f"🚀 NER DEBUG: Authenticating with token from {token_source}")
             login(token=hf_token, write_permission=False)
-            print("🔍 NER DEBUG: Authentication completed")
         else:
             print("❌ NER DEBUG: No HF token found")
         
         model_path = 'artur-muratov/franx-ner'
-        print(f"🔍 NER DEBUG: About to load model from {model_path}")
         bert_model = DebertaV3NerClassifier.load(model_path)
-        print("🔍 NER DEBUG: Model loaded successfully")
         
         # Add +1 bias to non-O classes (same as inference_deberta)
         with torch.no_grad():
@@ -111,11 +98,8 @@ def load_ner_model():
 @st.cache_resource 
 def load_stage2_model():
     """Load the stage 2 classification model once and cache it."""
-    print("🔍 STAGE2 FUNCTION DEBUG: Function called...")
     try:
-        print("🔍 STAGE2 FUNCTION DEBUG: Importing transformers...")
         from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
-        print("🔍 STAGE2 FUNCTION DEBUG: Importing huggingface_hub...")
         from huggingface_hub import login
         
         # Authenticate with HF token from Streamlit secrets or environment
@@ -152,17 +136,12 @@ def load_stage2_model():
             print(f"🔐 STAGE2 DEBUG: Token first 10 chars: {hf_token[:10]}")
             print(f"🚀 STAGE2 DEBUG: Authenticating with token from {token_source}")
             login(token=hf_token, write_permission=False)
-            print("🔍 STAGE2 DEBUG: Authentication completed")
         else:
             print("❌ STAGE2 DEBUG: No HF token found")
         
         model_path = "artur-muratov/franx-cls"
-        print(f"🔍 STAGE2 DEBUG: About to load tokenizer from {model_path}")
         tokenizer = AutoTokenizer.from_pretrained(model_path)
-        print("🔍 STAGE2 DEBUG: Tokenizer loaded successfully")
-        print(f"🔍 STAGE2 DEBUG: About to load model from {model_path}")
         model = AutoModelForSequenceClassification.from_pretrained(model_path)
-        print("🔍 STAGE2 DEBUG: Model loaded successfully")
         clf_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer, return_all_scores=True)
         
         return clf_pipeline
@@ -258,46 +237,47 @@ def run_stage2_with_cached_model(article_id, clf_pipeline, df, threshold=0.01, m
     return df
 
 
-# Load models on app startup with debugging
-print("🔍 STARTUP DEBUG: Starting model loading...")
+# ============================================================================
+# LAZY MODEL LOADING - Load models only when needed
+# ============================================================================
 
-try:
-    print("🔍 STARTUP DEBUG: About to load NER model...")
-    NER_MODEL = load_ner_model()
-    print(f"🔍 STARTUP DEBUG: NER model result: {NER_MODEL is not None}")
-except Exception as e:
-    print(f"❌ STARTUP DEBUG: NER model failed: {e}")
-    print(f"❌ STARTUP DEBUG: Error type: {type(e).__name__}")
-    import traceback
-    print(f"❌ STARTUP DEBUG: Traceback: {traceback.format_exc()}")
-    NER_MODEL = None
+# Global variables to store models once loaded
+_NER_MODEL = None
+_STAGE2_MODEL = None
+_MODELS_LOADING = False
 
-try:
-    print("🔍 STARTUP DEBUG: About to load Stage 2 model...")
-    STAGE2_MODEL = load_stage2_model()
-    print(f"🔍 STARTUP DEBUG: Stage 2 model result: {STAGE2_MODEL is not None}")
-except Exception as e:
-    print(f"❌ STARTUP DEBUG: Stage 2 model failed: {e}")
-    print(f"❌ STARTUP DEBUG: Error type: {type(e).__name__}")
-    import traceback
-    print(f"❌ STARTUP DEBUG: Traceback: {traceback.format_exc()}")
-    STAGE2_MODEL = None
+def get_ner_model():
+    """Get NER model, loading it if necessary."""
+    global _NER_MODEL, _MODELS_LOADING
+    
+    if _NER_MODEL is None and not _MODELS_LOADING:
+        _MODELS_LOADING = True
+        with st.spinner("🔄 Loading NER model (first time only)..."):
+            _NER_MODEL = load_ner_model()
+        _MODELS_LOADING = False
+    
+    return _NER_MODEL
 
-print("🔍 STARTUP DEBUG: Model loading phase complete")
+def get_stage2_model():
+    """Get Stage 2 model, loading it if necessary."""
+    global _STAGE2_MODEL, _MODELS_LOADING
+    
+    if _STAGE2_MODEL is None and not _MODELS_LOADING:
+        _MODELS_LOADING = True
+        with st.spinner("🔄 Loading Stage 2 model (first time only)..."):
+            _STAGE2_MODEL = load_stage2_model()
+        _MODELS_LOADING = False
+    
+    return _STAGE2_MODEL
 
-# Check if models loaded successfully
-if NER_MODEL is not None and STAGE2_MODEL is not None:
-    PREDICTION_AVAILABLE = True
-    prediction_error = None
-elif NER_MODEL is None:
-    PREDICTION_AVAILABLE = False
-    prediction_error = "NER model failed to load"
-elif STAGE2_MODEL is None:
-    PREDICTION_AVAILABLE = False
-    prediction_error = "Stage 2 model failed to load"
-else:
-    PREDICTION_AVAILABLE = False
-    prediction_error = "Both models failed to load"
+def models_available():
+    """Check if models can be loaded (without actually loading them)."""
+    # For now, assume models are available - we'll load them when needed
+    return True
+
+# Set prediction availability based on lazy loading
+PREDICTION_AVAILABLE = models_available()
+prediction_error = None
 
 #def generate_response(input_text):
     #model = ChatOpenAI(temperature=0.7, api_key=openai_api_key)
@@ -324,6 +304,9 @@ def filter_labels_by_role(labels, role_filter):
 
 st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout="wide")
 st.title("FRaN-X: Entity Framing & Narrative Analysis")
+
+# Show app is ready
+st.success("✅ App started successfully! Models will load when you run your first prediction.")
 
 #_, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(False, False, False, False, False)
 article = ""
@@ -452,7 +435,7 @@ if PREDICTION_AVAILABLE:
                     #puts values in the current_articles_predictions.txt file
                     predictions, non_unknown_count = predict_with_cached_model(
                         article_id=filename_wo_pred,
-                        bert_model=NER_MODEL,
+                        bert_model=get_ner_model(),
                         text=article,
                         output_filename="current_article_preds.txt",
                         output_dir=predictions_dir
@@ -485,7 +468,7 @@ if PREDICTION_AVAILABLE:
                     new_input_df = pd.read_csv(input_stage2_csv_path)
 
                     # Step 4: Run Stage 2 predictions on new inputs
-                    new_stage2_df = run_stage2_with_cached_model(filename_wo_pred, STAGE2_MODEL, new_input_df)
+                    new_stage2_df = run_stage2_with_cached_model(filename_wo_pred, get_stage2_model(), new_input_df)
 
                     # Step 5: Merge existing + new predictions
                     combined_df = pd.concat([existing_df, new_stage2_df], ignore_index=True)
@@ -504,7 +487,7 @@ if PREDICTION_AVAILABLE:
                         a.write_text(article, encoding='utf-8')
                         with st.expander("🎯 Detected Entities", expanded=True):
                             # Get all entity spans with confidence scores ONCE (not in the loop!)
-                            entity_spans = NER_MODEL.predict(article, return_format='spans')
+                            entity_spans = get_ner_model().predict(article, return_format='spans')
                                 
                             for i, pred in enumerate(predictions):
                                 text_id, entity, start, end, role = pred.split('\t')
