@@ -38,16 +38,39 @@ def load_ner_model():
         
         # Authenticate with HF token from Streamlit secrets or environment
         hf_token = None
+        token_source = "none"
+        
+        # Try Streamlit secrets first
         try:
             hf_token = st.secrets.get('HF_TOKEN')
-        except:
+            if hf_token:
+                token_source = "Streamlit secrets"
+                print(f"🔑 NER DEBUG: Using HF token from {token_source}")
+        except Exception as e:
+            print(f"🔍 NER DEBUG: Streamlit secrets not available: {e}")
             pass
         
+        # Fallback to environment variable
         if not hf_token:
             hf_token = os.getenv('HF_TOKEN')
+            if hf_token:
+                token_source = "environment variable (.env)"
+                print(f"🔑 NER DEBUG: Using HF token from {token_source}")
+        
+        # Check for existing CLI token
+        try:
+            from huggingface_hub import HfFolder
+            cli_token = HfFolder.get_token()
+            if cli_token:
+                print(f"⚠️  NER DEBUG: CLI token also exists (from huggingface-cli login)")
+        except:
+            pass
             
         if hf_token:
+            print(f"🚀 NER DEBUG: Authenticating with token from {token_source}")
             login(token=hf_token, write_permission=False)
+        else:
+            print("❌ NER DEBUG: No HF token found")
         
         model_path = 'artur-muratov/franx-ner'
         bert_model = DebertaV3NerClassifier.load(model_path)
@@ -80,16 +103,39 @@ def load_stage2_model():
         
         # Authenticate with HF token from Streamlit secrets or environment
         hf_token = None
+        token_source = "none"
+        
+        # Try Streamlit secrets first
         try:
             hf_token = st.secrets.get('HF_TOKEN')
-        except:
+            if hf_token:
+                token_source = "Streamlit secrets"
+                print(f"🔑 STAGE2 DEBUG: Using HF token from {token_source}")
+        except Exception as e:
+            print(f"🔍 STAGE2 DEBUG: Streamlit secrets not available: {e}")
             pass
         
+        # Fallback to environment variable
         if not hf_token:
             hf_token = os.getenv('HF_TOKEN')
+            if hf_token:
+                token_source = "environment variable (.env)"
+                print(f"🔑 STAGE2 DEBUG: Using HF token from {token_source}")
+        
+        # Check for existing CLI token
+        try:
+            from huggingface_hub import HfFolder
+            cli_token = HfFolder.get_token()
+            if cli_token:
+                print(f"⚠️  STAGE2 DEBUG: CLI token also exists (from huggingface-cli login)")
+        except:
+            pass
             
         if hf_token:
+            print(f"🚀 STAGE2 DEBUG: Authenticating with token from {token_source}")
             login(token=hf_token, write_permission=False)
+        else:
+            print("❌ STAGE2 DEBUG: No HF token found")
         
         model_path = "artur-muratov/franx-cls"
         tokenizer = AutoTokenizer.from_pretrained(model_path)
