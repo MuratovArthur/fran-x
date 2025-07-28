@@ -37,7 +37,15 @@ def load_ner_model():
         from huggingface_hub import login
         
         # Authenticate with HF token from Streamlit secrets or environment
-        hf_token = st.secrets.get('HF_TOKEN') or os.getenv('HF_TOKEN')
+        hf_token = None
+        try:
+            hf_token = st.secrets.get('HF_TOKEN')
+        except:
+            pass
+        
+        if not hf_token:
+            hf_token = os.getenv('HF_TOKEN')
+            
         if hf_token:
             login(token=hf_token, write_permission=False)
         
@@ -71,7 +79,15 @@ def load_stage2_model():
         from huggingface_hub import login
         
         # Authenticate with HF token from Streamlit secrets or environment
-        hf_token = st.secrets.get('HF_TOKEN') or os.getenv('HF_TOKEN')
+        hf_token = None
+        try:
+            hf_token = st.secrets.get('HF_TOKEN')
+        except:
+            pass
+        
+        if not hf_token:
+            hf_token = os.getenv('HF_TOKEN')
+            
         if hf_token:
             login(token=hf_token, write_permission=False)
         
