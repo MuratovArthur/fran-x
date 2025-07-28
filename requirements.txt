@@ -11,7 +11,7 @@ rapidfuzz
 st_theme
 torch>=2.0.0
 transformers>=4.30.0,<5.0.0
-git+https://github.com/kmkurn/pytorch-crf.git
+TorchCRF
 safetensors
 numpy
 accelerate

@@ -1,7 +1,7 @@
 # src/deberta.py
 
 from typing import List, Any
-from torchcrf import CRF  # type: ignore
+from TorchCRF import CRF  # type: ignore
 from .bert import BertNerClassifier, _SpanMerger, BERTDataset, device
 from utils.postprocess import snap_boundaries
 import numpy as np
@@ -100,7 +100,7 @@ class DebertaV3NerClassifier(BertNerClassifier):
             
             # Add CRF layer if not present (for compatibility)
             if not hasattr(inst.model, 'crf'):
-                from torchcrf import CRF
+                from TorchCRF import CRF
                 inst.model.crf = CRF(num_tags=len(label_names), batch_first=True).to(dev)
             
             inst.prediction_aggregator = PredictionAggregator(inst)
@@ -199,7 +199,7 @@ class DebertaV3NerClassifier(BertNerClassifier):
             # ------------------------------
             # Restore CRF weights
             # ------------------------------
-            from torchcrf import CRF  # type: ignore
+            from TorchCRF import CRF  # type: ignore
             inst.model.crf = CRF(num_tags=len(label_names), batch_first=True).to(dev)
 
             crf_state = {k.replace("crf.", ""): v for k, v in full_state.items() if k.startswith("crf.")}
