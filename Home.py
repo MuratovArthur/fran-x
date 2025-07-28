@@ -86,44 +86,8 @@ def load_ner_model():
         
         model_path = 'artur-muratov/franx-ner'
         print(f"🔍 NER DEBUG: About to load model from {model_path}")
-        st.write(f"🔍 Loading NER model from {model_path}...")
-        
-        # Add retry logic with visible feedback
-        max_retries = 2
-        for attempt in range(max_retries + 1):
-            try:
-                if attempt > 0:
-                    print(f"🔄 NER DEBUG: Retry attempt {attempt}/{max_retries}")
-                    st.write(f"🔄 Connection retry {attempt}/{max_retries} for NER model...")
-                
-                bert_model = DebertaV3NerClassifier.load(model_path)
-                print("🔍 NER DEBUG: Model loaded successfully")
-                st.write("✅ NER model loaded successfully!")
-                break
-                
-            except Exception as download_error:
-                error_msg = str(download_error).lower()
-                is_connection_error = any(keyword in error_msg for keyword in [
-                    'timeout', 'connection', 'network', 'http', 'ssl', 'resolve', 
-                    '429', 'rate limit', 'max retries', 'timed out'
-                ])
-                
-                if is_connection_error and attempt < max_retries:
-                    print(f"🌐 NER DEBUG: Connection issue, retrying... ({download_error})")
-                    st.write(f"🌐 Connection issue detected: {str(download_error)[:100]}...")
-                    st.write(f"⏳ Waiting 5 seconds before retry {attempt + 1}/{max_retries}...")
-                    import time
-                    time.sleep(5)
-                    continue
-                elif is_connection_error:
-                    print(f"🌐 NER DEBUG: HuggingFace connection issue after {max_retries + 1} attempts: {download_error}")
-                    st.write(f"❌ Failed to connect to HuggingFace after {max_retries + 1} attempts")
-                    st.write(f"🔍 Final error: {str(download_error)}")
-                    raise ConnectionError(f"Could not connect to Hugging Face to download NER model after {max_retries + 1} attempts. Error: {download_error}")
-                else:
-                    print(f"❌ NER DEBUG: Model loading error: {download_error}")
-                    st.write(f"❌ NER model loading error: {str(download_error)}")
-                    raise
+        bert_model = DebertaV3NerClassifier.load(model_path)
+        print("🔍 NER DEBUG: Model loaded successfully")
         
         # Add +1 bias to non-O classes (same as inference_deberta)
         with torch.no_grad():
@@ -194,83 +158,11 @@ def load_stage2_model():
         
         model_path = "artur-muratov/franx-cls"
         print(f"🔍 STAGE2 DEBUG: About to load tokenizer from {model_path}")
-        st.write(f"🔍 Loading Stage 2 tokenizer from {model_path}...")
-        
-        # Load tokenizer with retry logic and visible feedback
-        max_retries = 2
-        for attempt in range(max_retries + 1):
-            try:
-                if attempt > 0:
-                    print(f"🔄 STAGE2 DEBUG: Tokenizer retry attempt {attempt}/{max_retries}")
-                    st.write(f"🔄 Tokenizer connection retry {attempt}/{max_retries}...")
-                
-                tokenizer = AutoTokenizer.from_pretrained(model_path)
-                print("🔍 STAGE2 DEBUG: Tokenizer loaded successfully")
-                st.write("✅ Stage 2 tokenizer loaded successfully!")
-                break
-                
-            except Exception as download_error:
-                error_msg = str(download_error).lower()
-                is_connection_error = any(keyword in error_msg for keyword in [
-                    'timeout', 'connection', 'network', 'http', 'ssl', 'resolve', 
-                    '429', 'rate limit', 'max retries', 'timed out'
-                ])
-                
-                if is_connection_error and attempt < max_retries:
-                    print(f"🌐 STAGE2 DEBUG: Tokenizer connection issue, retrying... ({download_error})")
-                    st.write(f"🌐 Tokenizer connection issue: {str(download_error)[:100]}...")
-                    st.write(f"⏳ Waiting 3 seconds before tokenizer retry...")
-                    import time
-                    time.sleep(3)
-                    continue
-                elif is_connection_error:
-                    print(f"🌐 STAGE2 DEBUG: HuggingFace tokenizer connection issue after {max_retries + 1} attempts: {download_error}")
-                    st.write(f"❌ Failed to connect for Stage 2 tokenizer after {max_retries + 1} attempts")
-                    st.write(f"🔍 Tokenizer error: {str(download_error)}")
-                    raise ConnectionError(f"Could not connect to Hugging Face to download Stage 2 tokenizer after {max_retries + 1} attempts. Error: {download_error}")
-                else:
-                    print(f"❌ STAGE2 DEBUG: Tokenizer loading error: {download_error}")
-                    st.write(f"❌ Stage 2 tokenizer error: {str(download_error)}")
-                    raise
-        
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        print("🔍 STAGE2 DEBUG: Tokenizer loaded successfully")
         print(f"🔍 STAGE2 DEBUG: About to load model from {model_path}")
-        st.write(f"🔍 Loading Stage 2 classification model from {model_path}...")
-        
-        # Load model with retry logic and visible feedback
-        for attempt in range(max_retries + 1):
-            try:
-                if attempt > 0:
-                    print(f"🔄 STAGE2 DEBUG: Model retry attempt {attempt}/{max_retries}")
-                    st.write(f"🔄 Stage 2 model connection retry {attempt}/{max_retries}...")
-                
-                model = AutoModelForSequenceClassification.from_pretrained(model_path)
-                print("🔍 STAGE2 DEBUG: Model loaded successfully")
-                st.write("✅ Stage 2 classification model loaded successfully!")
-                break
-                
-            except Exception as download_error:
-                error_msg = str(download_error).lower()
-                is_connection_error = any(keyword in error_msg for keyword in [
-                    'timeout', 'connection', 'network', 'http', 'ssl', 'resolve', 
-                    '429', 'rate limit', 'max retries', 'timed out'
-                ])
-                
-                if is_connection_error and attempt < max_retries:
-                    print(f"🌐 STAGE2 DEBUG: Model connection issue, retrying... ({download_error})")
-                    st.write(f"🌐 Stage 2 model connection issue: {str(download_error)[:100]}...")
-                    st.write(f"⏳ Waiting 3 seconds before model retry...")
-                    import time
-                    time.sleep(3)
-                    continue
-                elif is_connection_error:
-                    print(f"🌐 STAGE2 DEBUG: HuggingFace model connection issue after {max_retries + 1} attempts: {download_error}")
-                    st.write(f"❌ Failed to connect for Stage 2 model after {max_retries + 1} attempts")
-                    st.write(f"🔍 Stage 2 model error: {str(download_error)}")
-                    raise ConnectionError(f"Could not connect to Hugging Face to download Stage 2 classification model after {max_retries + 1} attempts. Error: {download_error}")
-                else:
-                    print(f"❌ STAGE2 DEBUG: Model loading error: {download_error}")
-                    st.write(f"❌ Stage 2 model error: {str(download_error)}")
-                    raise
+        model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        print("🔍 STAGE2 DEBUG: Model loaded successfully")
         clf_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer, return_all_scores=True)
         
         return clf_pipeline
@@ -397,15 +289,15 @@ print("🔍 STARTUP DEBUG: Model loading phase complete")
 if NER_MODEL is not None and STAGE2_MODEL is not None:
     PREDICTION_AVAILABLE = True
     prediction_error = None
+elif NER_MODEL is None:
+    PREDICTION_AVAILABLE = False
+    prediction_error = "NER model failed to load"
+elif STAGE2_MODEL is None:
+    PREDICTION_AVAILABLE = False
+    prediction_error = "Stage 2 model failed to load"
 else:
     PREDICTION_AVAILABLE = False
-    if 'prediction_error' not in locals():  # If not set by ConnectionError
-        if NER_MODEL is None and STAGE2_MODEL is None:
-            prediction_error = "Both models failed to load"
-        elif NER_MODEL is None:
-            prediction_error = "NER model failed to load"
-        else:
-            prediction_error = "Stage 2 model failed to load"
+    prediction_error = "Both models failed to load"
 
 #def generate_response(input_text):
     #model = ChatOpenAI(temperature=0.7, api_key=openai_api_key)
@@ -724,18 +616,7 @@ if PREDICTION_AVAILABLE:
     #        else:
     #            st.warning("Entity prediction model is not available.")
 else:
-    if prediction_error and "connection issue" in prediction_error.lower():
-        st.error(f"🌐 **Connection Issue**: {prediction_error}")
-        st.info("💡 **Troubleshooting Tips:**\n"
-                "- This usually indicates a timeout connecting to Hugging Face\n"
-                "- Try refreshing the page to retry model loading\n"
-                "- The issue may resolve automatically after a few minutes\n"
-                "- If this persists, Hugging Face servers may be experiencing issues")
-        # Add a manual refresh button
-        if st.button("🔄 Retry Loading Models", help="Refresh the page to attempt model loading again"):
-            st.rerun()
-    else:
-        st.warning(f"⚠️ **Entity Prediction Unavailable**: {prediction_error if prediction_error else 'Models not loaded'}")
+    st.warning(f"⚠️ **Entity Prediction Unavailable**: {prediction_error if prediction_error else 'Models not loaded'}")
 
 
 
