@@ -169,6 +169,8 @@ if st.button("Run Entity Predictions"):
         # Lazy-load models in order: CLS then NER
         with st.spinner("Loading classification model..."):
             clf_pipeline = get_stage2_model()
+        st.success("✅ Classification model loaded")
+
         with st.spinner("Loading NER model..."):
             bert_model = get_ner_model()
 
