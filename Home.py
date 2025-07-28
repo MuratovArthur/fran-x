@@ -1,9 +1,13 @@
+print("🔍 IMPORT DEBUG: Starting imports...")
+
 import streamlit as st
 import pandas as pd
 import altair as alt
 import requests
 import datetime
 import re
+print("🔍 IMPORT DEBUG: Basic imports done...")
+
 from sidebar import render_sidebar, ROLE_COLORS
 from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans
 from streamlit.components.v1 import html as st_html
@@ -17,9 +21,11 @@ from mode_tc_utils.tc_inference import run_role_inference
 from bs4 import BeautifulSoup
 import secrets
 from dotenv import load_dotenv
+print("🔍 IMPORT DEBUG: All imports completed...")
 
 # Load environment variables
 load_dotenv()
+print("🔍 IMPORT DEBUG: Environment variables loaded...")
 
 # Add the seq directory to the path to import predict.py
 sys.path.append(str(Path(__file__).parent / 'seq'))
@@ -31,57 +37,57 @@ sys.path.append(str(Path(__file__).parent / 'seq'))
 @st.cache_resource
 def load_ner_model():
     """Load the NER model once and cache it."""
-    try:
+    print("🔍 NER FUNCTION DEBUG: Function called...")
+    try:    
+        print("🔍 NER FUNCTION DEBUG: Importing torch...")
         import torch
+        print("🔍 NER FUNCTION DEBUG: Importing DebertaV3NerClassifier...")
         from src.deberta import DebertaV3NerClassifier
+        print("🔍 NER FUNCTION DEBUG: Importing huggingface_hub...")
         from huggingface_hub import login
         
-        # Authentication with progress indication
-        auth_status = st.empty()
-        auth_status.info("🔐 Authenticating with Hugging Face for NER model...")
-        
-        # Try Streamlit secrets first
+        # Authenticate with HF token from Streamlit secrets or environment
         hf_token = None
         token_source = "none"
+        
+        # Try Streamlit secrets first
         try:
             hf_token = st.secrets.get('HF_TOKEN')
             if hf_token:
                 token_source = "Streamlit secrets"
-        except:
+                print(f"🔑 NER DEBUG: Using HF token from {token_source}")
+        except Exception as e:
+            print(f"🔍 NER DEBUG: Streamlit secrets not available: {e}")
             pass
         
         # Fallback to environment variable
         if not hf_token:
             hf_token = os.getenv('HF_TOKEN')
             if hf_token:
-                token_source = "environment variable"
+                token_source = "environment variable (.env)"
+                print(f"🔑 NER DEBUG: Using HF token from {token_source}")
         
+        # Check for existing CLI token
+        try:
+            from huggingface_hub import HfFolder
+            cli_token = HfFolder.get_token()
+            if cli_token:
+                print(f"⚠️  NER DEBUG: CLI token also exists (from huggingface-cli login)")
+        except:
+            pass
+            
         if hf_token:
-            try:
-                login(token=hf_token, write_permission=False)
-                
-                # Verify authentication worked
-                from huggingface_hub import whoami
-                user_info = whoami(token=hf_token)
-                username = user_info.get('name', 'Unknown')
-                plan = user_info.get('plan', 'Unknown')
-                
-                auth_status.success(f"✅ NER: Authenticated as {username} via {token_source} (Plan: {plan})")
-                print(f"✅ NER AUTH: Success - {username} via {token_source} (Plan: {plan})")
-                
-            except Exception as auth_error:
-                auth_status.error(f"❌ NER Authentication failed: {auth_error}")
-                print(f"❌ NER AUTH: Failed - {auth_error}")
-                raise auth_error
+            print(f"🔐 NER DEBUG: Token first 10 chars: {hf_token[:10]}")
+            print(f"🚀 NER DEBUG: Authenticating with token from {token_source}")
+            login(token=hf_token, write_permission=False)
+            print("🔍 NER DEBUG: Authentication completed")
         else:
-            auth_status.warning("⚠️ NER: No HF token found - using anonymous access (limited)")
-            print("⚠️ NER AUTH: No token found")
-
-        # Clear auth status and show model loading
-        auth_status.info("📥 Loading NER model from Hugging Face...")
+            print("❌ NER DEBUG: No HF token found")
         
         model_path = 'artur-muratov/franx-ner'
+        print(f"🔍 NER DEBUG: About to load model from {model_path}")
         bert_model = DebertaV3NerClassifier.load(model_path)
+        print("🔍 NER DEBUG: Model loaded successfully")
         
         # Add +1 bias to non-O classes (same as inference_deberta)
         with torch.no_grad():
@@ -94,10 +100,6 @@ def load_ner_model():
         bert_model.model = bert_model.model.to('cuda' if torch.cuda.is_available() else 'cpu')
         if hasattr(bert_model, 'merger'):
             bert_model.merger.threshold = 0.5
-        
-        # Update status to show successful loading
-        auth_status.success("✅ NER model loaded successfully!")
-        print(f"✅ NER MODEL: Successfully loaded artur-muratov/franx-ner")
             
         return bert_model
     except Exception as e:
@@ -109,62 +111,59 @@ def load_ner_model():
 @st.cache_resource 
 def load_stage2_model():
     """Load the stage 2 classification model once and cache it."""
+    print("🔍 STAGE2 FUNCTION DEBUG: Function called...")
     try:
+        print("🔍 STAGE2 FUNCTION DEBUG: Importing transformers...")
         from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+        print("🔍 STAGE2 FUNCTION DEBUG: Importing huggingface_hub...")
         from huggingface_hub import login
         
-        # Authentication with progress indication
-        auth_status = st.empty()
-        auth_status.info("🔐 Authenticating with Hugging Face for Stage 2 model...")
-        
-        # Try Streamlit secrets first
+        # Authenticate with HF token from Streamlit secrets or environment
         hf_token = None
         token_source = "none"
+        
+        # Try Streamlit secrets first
         try:
             hf_token = st.secrets.get('HF_TOKEN')
             if hf_token:
                 token_source = "Streamlit secrets"
-        except:
+                print(f"🔑 STAGE2 DEBUG: Using HF token from {token_source}")
+        except Exception as e:
+            print(f"🔍 STAGE2 DEBUG: Streamlit secrets not available: {e}")
             pass
         
         # Fallback to environment variable
         if not hf_token:
             hf_token = os.getenv('HF_TOKEN')
             if hf_token:
-                token_source = "environment variable"
+                token_source = "environment variable (.env)"
+                print(f"🔑 STAGE2 DEBUG: Using HF token from {token_source}")
         
+        # Check for existing CLI token
+        try:
+            from huggingface_hub import HfFolder
+            cli_token = HfFolder.get_token()
+            if cli_token:
+                print(f"⚠️  STAGE2 DEBUG: CLI token also exists (from huggingface-cli login)")
+        except:
+            pass
+            
         if hf_token:
-            try:
-                login(token=hf_token, write_permission=False)
-                
-                # Verify authentication worked
-                from huggingface_hub import whoami
-                user_info = whoami(token=hf_token)
-                username = user_info.get('name', 'Unknown')
-                plan = user_info.get('plan', 'Unknown')
-                
-                auth_status.success(f"✅ Stage 2: Authenticated as {username} via {token_source} (Plan: {plan})")
-                print(f"✅ STAGE2 AUTH: Success - {username} via {token_source} (Plan: {plan})")
-                
-            except Exception as auth_error:
-                auth_status.error(f"❌ Stage 2 Authentication failed: {auth_error}")
-                print(f"❌ STAGE2 AUTH: Failed - {auth_error}")
-                raise auth_error
+            print(f"🔐 STAGE2 DEBUG: Token first 10 chars: {hf_token[:10]}")
+            print(f"🚀 STAGE2 DEBUG: Authenticating with token from {token_source}")
+            login(token=hf_token, write_permission=False)
+            print("🔍 STAGE2 DEBUG: Authentication completed")
         else:
-            auth_status.warning("⚠️ Stage 2: No HF token found - using anonymous access (limited)")
-            print("⚠️ STAGE2 AUTH: No token found")
-
-        # Clear auth status and show model loading
-        auth_status.info("📥 Loading Stage 2 model from Hugging Face...")
+            print("❌ STAGE2 DEBUG: No HF token found")
         
         model_path = "artur-muratov/franx-cls"
+        print(f"🔍 STAGE2 DEBUG: About to load tokenizer from {model_path}")
         tokenizer = AutoTokenizer.from_pretrained(model_path)
+        print("🔍 STAGE2 DEBUG: Tokenizer loaded successfully")
+        print(f"🔍 STAGE2 DEBUG: About to load model from {model_path}")
         model = AutoModelForSequenceClassification.from_pretrained(model_path)
+        print("🔍 STAGE2 DEBUG: Model loaded successfully")
         clf_pipeline = pipeline("text-classification", model=model, tokenizer=tokenizer, return_all_scores=True)
-        
-        # Update status to show successful loading
-        auth_status.success("✅ Stage 2 model loaded successfully!")
-        print(f"✅ STAGE2 MODEL: Successfully loaded artur-muratov/franx-cls")
         
         return clf_pipeline
     except Exception as e:
@@ -259,68 +258,46 @@ def run_stage2_with_cached_model(article_id, clf_pipeline, df, threshold=0.01, m
     return df
 
 
-# Load models on app startup with comprehensive progress tracking
-st.info("🚀 Initializing FranX Analysis System...")
-
-# Create progress tracking
-progress_bar = st.progress(0, text="Starting up...")
-status_text = st.empty()
+# Load models on app startup with debugging
+print("🔍 STARTUP DEBUG: Starting model loading...")
 
 try:
-    # Load NER Model
-    status_text.text("🔄 Step 1/2: Loading NER model...")
-    progress_bar.progress(25, text="Loading NER model...")
+    print("🔍 STARTUP DEBUG: About to load NER model...")
     NER_MODEL = load_ner_model()
-    
-    if NER_MODEL is None:
-        st.error("❌ Failed to load NER model")
-        st.stop()
-    
-    progress_bar.progress(50, text="NER model loaded ✅")
-    
-    # Load Stage 2 Model  
-    status_text.text("🔄 Step 2/2: Loading Stage 2 model...")
-    progress_bar.progress(75, text="Loading Stage 2 model...")
+    print(f"🔍 STARTUP DEBUG: NER model result: {NER_MODEL is not None}")
+except Exception as e:
+    print(f"❌ STARTUP DEBUG: NER model failed: {e}")
+    print(f"❌ STARTUP DEBUG: Error type: {type(e).__name__}")
+    import traceback
+    print(f"❌ STARTUP DEBUG: Traceback: {traceback.format_exc()}")
+    NER_MODEL = None
+
+try:
+    print("🔍 STARTUP DEBUG: About to load Stage 2 model...")
     STAGE2_MODEL = load_stage2_model()
-    
-    if STAGE2_MODEL is None:
-        st.error("❌ Failed to load Stage 2 model")
-        st.stop()
-    
-    # Complete
-    progress_bar.progress(100, text="✅ All models loaded successfully!")
-    status_text.success("✅ System ready for analysis!")
-    
-    # Set prediction availability
+    print(f"🔍 STARTUP DEBUG: Stage 2 model result: {STAGE2_MODEL is not None}")
+except Exception as e:
+    print(f"❌ STARTUP DEBUG: Stage 2 model failed: {e}")
+    print(f"❌ STARTUP DEBUG: Error type: {type(e).__name__}")
+    import traceback
+    print(f"❌ STARTUP DEBUG: Traceback: {traceback.format_exc()}")
+    STAGE2_MODEL = None
+
+print("🔍 STARTUP DEBUG: Model loading phase complete")
+
+# Check if models loaded successfully
+if NER_MODEL is not None and STAGE2_MODEL is not None:
     PREDICTION_AVAILABLE = True
     prediction_error = None
-    
-    # Clear progress after showing success
-    import time
-    time.sleep(1.5)
-    progress_bar.empty()
-    status_text.empty()
-    
-    st.success("🎯 FranX Analysis System is ready!")
-
-except Exception as startup_error:
-    progress_bar.empty()
-    status_text.empty()
-    st.error(f"❌ System startup failed: {startup_error}")
+elif NER_MODEL is None:
     PREDICTION_AVAILABLE = False
-    prediction_error = f"Startup error: {startup_error}"
-    
-    # Show debugging info
-    st.error("🔍 Debug Info:")
-    st.text(f"Error details: {str(startup_error)}")
-    st.text(f"Error type: {type(startup_error).__name__}")
-    import traceback
-    st.text(f"Traceback: {traceback.format_exc()}")
-    st.stop()
-
-# Helper function to get models (they're already loaded)
-def get_models():
-    return NER_MODEL, STAGE2_MODEL
+    prediction_error = "NER model failed to load"
+elif STAGE2_MODEL is None:
+    PREDICTION_AVAILABLE = False
+    prediction_error = "Stage 2 model failed to load"
+else:
+    PREDICTION_AVAILABLE = False
+    prediction_error = "Both models failed to load"
 
 #def generate_response(input_text):
     #model = ChatOpenAI(temperature=0.7, api_key=openai_api_key)
@@ -473,10 +450,9 @@ if PREDICTION_AVAILABLE:
                         
                     # Run prediction with cached NER model
                     #puts values in the current_articles_predictions.txt file
-                    ner_model, _ = get_models()
                     predictions, non_unknown_count = predict_with_cached_model(
                         article_id=filename_wo_pred,
-                        bert_model=ner_model,
+                        bert_model=NER_MODEL,
                         text=article,
                         output_filename="current_article_preds.txt",
                         output_dir=predictions_dir
@@ -509,8 +485,7 @@ if PREDICTION_AVAILABLE:
                     new_input_df = pd.read_csv(input_stage2_csv_path)
 
                     # Step 4: Run Stage 2 predictions on new inputs
-                    _, stage2_model = get_models()
-                    new_stage2_df = run_stage2_with_cached_model(filename_wo_pred, stage2_model, new_input_df)
+                    new_stage2_df = run_stage2_with_cached_model(filename_wo_pred, STAGE2_MODEL, new_input_df)
 
                     # Step 5: Merge existing + new predictions
                     combined_df = pd.concat([existing_df, new_stage2_df], ignore_index=True)
