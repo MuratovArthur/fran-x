@@ -16,6 +16,10 @@ from mode_tc_utils.preprocessing import convert_prediction_txt_to_csv
 from mode_tc_utils.tc_inference import run_role_inference
 from bs4 import BeautifulSoup
 import secrets
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add the seq directory to the path to import predict.py
 sys.path.append(str(Path(__file__).parent / 'seq'))
@@ -30,6 +34,12 @@ def load_ner_model():
     try:
         import torch
         from src.deberta import DebertaV3NerClassifier
+        from huggingface_hub import login
+        
+        # Authenticate with HF token from environment
+        hf_token = os.getenv('HF_TOKEN')
+        if hf_token:
+            login(token=hf_token, write_permission=False)
         
         model_path = 'artur-muratov/franx-ner'
         bert_model = DebertaV3NerClassifier.load(model_path)
@@ -58,6 +68,12 @@ def load_stage2_model():
     """Load the stage 2 classification model once and cache it."""
     try:
         from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+        from huggingface_hub import login
+        
+        # Authenticate with HF token from environment
+        hf_token = os.getenv('HF_TOKEN')
+        if hf_token:
+            login(token=hf_token, write_permission=False)
         
         model_path = "artur-muratov/franx-cls"
         tokenizer = AutoTokenizer.from_pretrained(model_path)
