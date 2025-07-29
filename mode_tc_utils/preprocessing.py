@@ -1,11 +1,24 @@
 import os
 import pandas as pd
-import pandas as pd
 import nltk
 import streamlit as st
-nltk.download('punkt_tab')
 from nltk.tokenize import sent_tokenize
 import re
+
+# Lazy NLTK download - only when needed
+def ensure_nltk_data():
+    """Download NLTK data if not already present"""
+    try:
+        # Try to use punkt tokenizer - if it fails, download it
+        sent_tokenize("Test sentence.")
+    except LookupError:
+        print("📥 Downloading NLTK punkt tokenizer...")
+        try:
+            nltk.download('punkt_tab', quiet=True)
+        except Exception as e:
+            print(f"⚠️ NLTK download failed: {e}")
+            # Fallback to basic splitting if NLTK fails
+            pass
 
 def char_window_context(text, start_offset, end_offset, window=150):
     try:

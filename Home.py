@@ -19,6 +19,10 @@ from bs4 import BeautifulSoup
 # Load environment variables
 load_dotenv()
 
+# Startup debugging (will be removed after deployment works)
+print("🚀 Home.py: Starting Streamlit app initialization...")
+print("✅ Home.py: Environment variables loaded")
+
 # ============================================================================
 # MODEL LOADING FUNCTIONS (optimized for performance)
 # ============================================================================
@@ -31,12 +35,17 @@ def get_inference_url():
     except:
         return os.getenv('INFERENCE_URL', 'http://localhost:8000')
 
-API_BASE_URL = get_inference_url()
+# Lazy initialization - get URL only when needed
+@st.cache_data
+def get_api_base_url():
+    """Get API base URL with caching"""
+    return get_inference_url()
 
 def check_model_service():
     """Check if the model service is available"""
     try:
-        response = requests.get(f"{API_BASE_URL}/health", timeout=5)
+        api_url = get_api_base_url()
+        response = requests.get(f"{api_url}/health", timeout=5)
         if response.status_code == 200:
             return True, response.json()
         else:
@@ -52,8 +61,9 @@ def get_service_status():
 def _run_ner_inference(text):
     """Run NER model inference"""
     try:
+        api_url = get_api_base_url()
         response = requests.post(
-            f"{API_BASE_URL}/ner",
+            f"{api_url}/ner",
             json={"text": text},
             timeout=30
         )
@@ -66,8 +76,9 @@ def _run_ner_inference(text):
 def _run_classification_inference(entity_mention, p_main_role, context, threshold=0.01, margin=0.05):
     """Run classification model inference"""
     try:
+        api_url = get_api_base_url()
         response = requests.post(
-            f"{API_BASE_URL}/classify",
+            f"{api_url}/classify",
             json={
                 "entity_mention": entity_mention,
                 "p_main_role": p_main_role,
@@ -182,14 +193,19 @@ def run_stage2_with_cached_model(article_id, clf_pipeline, df, threshold=0.01, m
 # ----------------------------------------------------------------------------
 # Streamlit App Layout and Logic
 # ----------------------------------------------------------------------------
+print("🔧 Home.py: Configuring Streamlit...")
 st.set_page_config(page_title="FRaN-X", layout="wide")
+print("✅ Home.py: Streamlit configured successfully")
 st.title("FRaN-X: Entity Framing & Narrative Analysis")
+print("✅ Home.py: App title rendered")
 
 # Session management
+print("🔑 Home.py: Setting up session management...")
 if 'session_id' not in st.session_state:
     st.session_state.session_id = secrets.token_hex(4)
 user_folder = st.session_state.session_id
 st.info(f"Your session ID: `{user_folder}`. Save this to revisit your files.")
+print("✅ Home.py: Session management complete")
 
 # Article input
 filename_input = st.text_input("Filename (without extension)")
