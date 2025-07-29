@@ -4,17 +4,19 @@ import altair as alt
 import requests
 import datetime
 import re
+from sidebar import render_sidebar, ROLE_COLORS
+from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans
+from streamlit.components.v1 import html as st_html
+import streamlit as st
 import sys
 import os
 from pathlib import Path
 import ast
-import secrets
-from dotenv import load_dotenv
-from sidebar import render_sidebar, ROLE_COLORS
-from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans
 from mode_tc_utils.preprocessing import convert_prediction_txt_to_csv
 from mode_tc_utils.tc_inference import run_role_inference
 from bs4 import BeautifulSoup
+import secrets
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -23,7 +25,7 @@ load_dotenv()
 sys.path.append(str(Path(__file__).parent / 'seq'))
 
 # ============================================================================
-# MODEL LOADING FUNCTIONS (optimized for performance)
+# MODEL CACHING - Load both models once on app launch
 # ============================================================================
 
 # Configuration for optimized inference
@@ -123,18 +125,7 @@ def get_ner_model():
     """Load optimized NER model"""
     return OptimizedNERModel()
 
-# Load models on app startup
-NER_MODEL = get_ner_model()
-STAGE2_MODEL = get_stage2_model()
 
-# Check service availability
-service_available, service_info = get_service_status()
-if service_available:
-    PREDICTION_AVAILABLE = True
-    prediction_error = None
-else:
-    PREDICTION_AVAILABLE = False
-    prediction_error = f"Model service unavailable: {service_info}"
 
 def predict_with_cached_model(article_id, bert_model, text,
                               output_filename="current_article_preds.txt",
@@ -182,6 +173,8 @@ def predict_with_cached_model(article_id, bert_model, text,
     
     return output_lines, non_unknown
 
+
+
 def run_stage2_with_cached_model(article_id, clf_pipeline, df, threshold=0.01, margin=0.05):
     """Run stage 2 inference using the cached classification model."""
 
@@ -221,6 +214,24 @@ def run_stage2_with_cached_model(article_id, clf_pipeline, df, threshold=0.01, m
 
     return df
 
+
+# Load models on app startup
+NER_MODEL = get_ner_model()
+STAGE2_MODEL = get_stage2_model()
+
+# Check service availability
+service_available, service_info = get_service_status()
+if service_available:
+    PREDICTION_AVAILABLE = True
+    prediction_error = None
+else:
+    PREDICTION_AVAILABLE = False
+    prediction_error = f"Model service unavailable: {service_info}"
+
+#def generate_response(input_text):
+    #model = ChatOpenAI(temperature=0.7, api_key=openai_api_key)
+    #st.info(model.invoke(input_text))
+
 def escape_entity(entity):
     return re.sub(r'([.^$*+?{}\[\]\\|()])', r'\\\1', entity)
 
@@ -234,6 +245,18 @@ def filter_labels_by_role(labels, role_filter):
             filtered[entity] = filtered_mentions
     return filtered
 
+
+# ============================================================================
+# STREAMLIT APP - Allow users to upload and save articles
+# ============================================================================
+
+
+st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout="wide")
+st.title("FRaN-X: Entity Framing & Narrative Analysis")
+
+#_, labels, user_folder, threshold, role_filter, hide_repeat = render_sidebar(False, False, False, False, False)
+article = ""
+
 def generate_unique_session_id(base_folder="user_articles", length=8):
     while True:
         session_id = secrets.token_hex(length // 2)
@@ -241,20 +264,17 @@ def generate_unique_session_id(base_folder="user_articles", length=8):
         if not os.path.exists(session_folder):
             return session_id
 
-# ============================================================================
-# STREAMLIT APP - Allow users to upload and save articles
-# ============================================================================
-
-st.set_page_config(page_title="FRaN-X", initial_sidebar_state='expanded', layout="wide")
-st.title("FRaN-X: Entity Framing & Narrative Analysis")
-
-article = ""
 
 # Generate or retrieve a unique session ID for the user
 if "session_id" not in st.session_state:
     st.session_state.session_id = generate_unique_session_id()
+    #user_folder = st.session_state.session_id
+    #st.info(f"Your session ID: `{user_folder}`\n\nNote this ID to return to your files later.\nℹ️ Your session ID keeps your work separate from others, but it is not secure. Do not upload sensitive or confidential information.")
+    
 
 user_folder = st.session_state.session_id
+
+
 
 # Always show the session ID info
 st.info(
@@ -264,11 +284,12 @@ st.info(
     "Do not upload sensitive or confidential information."
 )
 st.sidebar.info(f"Your session ID: `{user_folder}`")
-
 # Article input
 st.header("1. Article Input")
 
 filename_input = st.text_input("Filename (without extension)")
+
+
 
 mode = st.radio("Input mode", ["Paste Text","URL"])
 if mode == "Paste Text":
@@ -277,10 +298,28 @@ if mode == "Paste Text":
 
 else:
     url = st.text_input("Article URL")
+    #article = ""
+    #if url:
+    #    try:
+    #        with st.spinner("Fetching article from URL..."):
+     #           resp = requests.get(url)
+      #          soup = BeautifulSoup(resp.content, 'html.parser')
+       #         article = '\n'.join(p.get_text() for p in soup.find_all('p'))
+            
+          #  if article.strip():
+          #      st.text_area("Fetched Article", value=article, height=200, disabled=True)
+          #  else:
+          #      st.warning("Could not extract meaningful content from the URL. Please check a different URL or paste the text directly.")
+        #except Exception as e:
+         #   st.error("Sorry, we couldn't fetch or process the article from this URL. Please check that the link is correct and points to a public news article, or try pasting the text instead.")
+
+
 
 # Debug info (can remove later)
 if article:
     st.caption(f"Article length: {len(article)} characters")
+
+
 
 # Add prediction functionality right after the text area
 if PREDICTION_AVAILABLE:
@@ -311,18 +350,26 @@ if PREDICTION_AVAILABLE:
                 st.stop()
 
         elif mode == "Paste Text":
+
             if not filename_input:
                 st.warning("⚠️ Please enter a filename for the article before running predictions.")
                 st.stop()
-
         # Generate filename
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        #filename = f"{filename_input}_{timestamp}_predictions.csv"
+
+
+        #filename_wo_pred = f"{filename_input}_{timestamp}"
+        #a = Path("user_articles") / user_folder / filename_wo_pred
+        #a.write_text(article, encoding='utf-8')
+
         filename_wo_pred = f"{filename_input}_{timestamp}"
-        
-        # Create user directory
         user_dir = Path("user_articles") / user_folder
-        user_dir.mkdir(parents=True, exist_ok=True)
+        user_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
         
+
+
         if article and article.strip():
             try:
                 with st.spinner("Analyzing entities in your article..."):
@@ -331,7 +378,7 @@ if PREDICTION_AVAILABLE:
                     os.makedirs(predictions_dir, exist_ok=True)
                         
                     # Run prediction with cached NER model
-                    # puts values in the current_articles_predictions.txt file
+                    #puts values in the current_articles_predictions.txt file
                     predictions, non_unknown_count = predict_with_cached_model(
                         article_id=filename_wo_pred,
                         bert_model=NER_MODEL,
@@ -339,10 +386,12 @@ if PREDICTION_AVAILABLE:
                         output_filename="current_article_preds.txt",
                         output_dir=predictions_dir
                     )
+
+                
                         
                     # convert txt output of stage 1 into csv and prepare for text classification model 2
                     # also extracts context
-                    # puts things into tc_input
+                    #puts things into tc_input
                     # Step 1: Load existing tc_output.csv (if it exists)
                     input_stage2_csv_path = os.path.join(predictions_dir, "tc_input.csv")
                     output_stage2_csv_path = os.path.join(predictions_dir, "tc_output.csv")
@@ -373,15 +422,15 @@ if PREDICTION_AVAILABLE:
                     # Step 6: Save to tc_output.csv
                     output_path = os.path.join(predictions_dir, "tc_output.csv")
                     combined_df.to_csv(output_path, index=False, encoding="utf-8")
+
+                    #st.success(f"✅ tc_output.csv updated with {len(new_stage2_df)} new rows ({len(combined_df)} total)")
                     
                     st.success(f"✅ Entity analysis complete! Found {len(predictions)} entities ({non_unknown_count} with specific roles)")
                     
                     # Show detailed predictions with confidence scores
                     if predictions:
-                        # Save user article after successful predictions
-                        user_article_file = user_dir / f"{filename_wo_pred}.txt"
-                        user_article_file.write_text(article, encoding='utf-8')
-                        
+                        a = user_dir / filename_wo_pred
+                        a.write_text(article, encoding='utf-8')
                         with st.expander("🎯 Detected Entities", expanded=True):
                             # Get all entity spans with confidence scores ONCE (not in the loop!)
                             entity_spans = NER_MODEL.predict(article, return_format='spans')
@@ -445,8 +494,10 @@ if PREDICTION_AVAILABLE:
                                 f"{role}: confidence = {fine_scores.get(role, '—')}" for role in fine_roles
                                     ) if fine_roles else "None"
 
+
                                 st.markdown(f"**{entity}** ({main_role}): _{formatted_roles}_")
 
+                        #st.write("Stored results. Head to the other pages for further analysis.")
                         st.info("✅ Results stored successfully. Explore the other pages to dive deeper into the analysis.")
 
             except Exception as e:
@@ -455,13 +506,50 @@ if PREDICTION_AVAILABLE:
             if not article or not article.strip():
                 if mode == "Paste Text":
                     st.warning("⚠️ Please enter some article text first.")
+                
                 else:
                     st.warning("⚠️ Please enter a valid URL or paste article as text.")
-                    
-        st.markdown("---")
+                    #else:
+            #st.warning("⚠️ Please enter some article text first.")
 
+            
+        st.markdown("---")
+    
+    #with col2:
+    #    if st.button("💾 Save Predictions to File", help="Save current predictions to txt_predictions folder", key="save_main"):
+    #        if article and article.strip() and user_folder:
+    #            try:
+    #                with st.spinner("Saving predictions..."):
+    #                    # Create user-specific predictions directory
+    #                    predictions_dir = os.path.join('txt_predictions', user_folder)
+    #                    os.makedirs(predictions_dir, exist_ok=True)
+    #                    
+    #                    # Run prediction with cached model and save
+    #                    predictions, non_unknown_count = predict_with_cached_model(
+    #                        article_id=filename,
+    #                        bert_model=NER_MODEL,
+    #                        text=article,
+    #                        output_filename=filename,
+    #                        output_dir=predictions_dir
+    #                    )
+    #                
+    #                st.success(f"💾 Predictions saved to: txt_predictions/{user_folder}/{filename}")
+    #                st.info(f"📊 Summary: {len(predictions)} entities found ({non_unknown_count} with specific roles)")
+    #                
+    #            except Exception as e:
+    #                st.error(f"Error saving predictions: {str(e)}")
+    #        elif not article or not article.strip():
+    #            st.warning("⚠️ Please enter some article text first.")
+    #        elif not user_folder:
+    #            st.warning("⚠️ Please select a user folder in the sidebar first.")
+    #        else:
+    #            st.warning("Entity prediction model is not available.")
 else:
     st.warning(f"⚠️ **Entity Prediction Unavailable**: {prediction_error if prediction_error else 'Models not loaded'}")
+
+
+
+
 
 st.markdown("---")
 st.markdown("*UGRIP 2025 FRaN-X Team* ")
