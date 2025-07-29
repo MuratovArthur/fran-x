@@ -10,7 +10,6 @@ from pathlib import Path
 import ast
 import secrets
 from dotenv import load_dotenv
-from huggingface_hub import login
 from sidebar import render_sidebar, ROLE_COLORS
 from render_text import reformat_text_html_with_tooltips, predict_entity_framing, format_sentence_with_spans
 from mode_tc_utils.preprocessing import convert_prediction_txt_to_csv
@@ -20,49 +19,104 @@ from bs4 import BeautifulSoup
 # Load environment variables
 load_dotenv()
 
-# Authenticate with Hugging Face at startup
-hf_token = st.secrets.get('HF_TOKEN') or os.getenv('HF_TOKEN')
-if hf_token:
+# ============================================================================
+# MODEL LOADING FUNCTIONS (optimized for performance)
+# ============================================================================
+
+# Configuration for optimized inference
+def get_inference_url():
+    """Get inference service URL from secrets or environment"""
     try:
-        login(token=hf_token, write_permission=False)
-        st.info("🔐 Authenticated with Hugging Face at startup")
-    except Exception as e:
-        st.warning(f"❌ HF login failed: {e}")
+        return st.secrets.get('INFERENCE_URL', 'http://localhost:8000')
+    except:
+        return os.getenv('INFERENCE_URL', 'http://localhost:8000')
 
-# ============================================================================
-# MODEL LOADING FUNCTIONS (cached)
-# ============================================================================
-@st.cache_resource
+API_BASE_URL = get_inference_url()
+
+def check_model_service():
+    """Check if the model service is available"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/health", timeout=5)
+        if response.status_code == 200:
+            return True, response.json()
+        else:
+            return False, f"Service returned {response.status_code}"
+    except requests.exceptions.RequestException as e:
+        return False, str(e)
+
+@st.cache_data(ttl=60)  # Cache service check for 1 minute  
+def get_service_status():
+    """Get model service status with caching"""
+    return check_model_service()
+
+def _run_ner_inference(text):
+    """Run NER model inference"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/ner",
+            json={"text": text},
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ NER model failed to load or process text. Please try again.")
+        return None
+
+def _run_classification_inference(entity_mention, p_main_role, context, threshold=0.01, margin=0.05):
+    """Run classification model inference"""
+    try:
+        response = requests.post(
+            f"{API_BASE_URL}/classify",
+            json={
+                "entity_mention": entity_mention,
+                "p_main_role": p_main_role,
+                "context": context,
+                "threshold": threshold,
+                "margin": margin
+            },
+            timeout=30
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"❌ Classification model failed to load or process text. Please try again.")
+        return None
+
+# Optimized model classes for efficient inference
+class OptimizedNERModel:
+    """Optimized NER model for efficient inference"""
+    def predict(self, text, return_format='spans'):
+        result = _run_ner_inference(text)
+        if result is None:
+            return []
+        return result
+
+class OptimizedClassifier:
+    """Optimized classifier for efficient inference"""
+    def __call__(self, input_text):
+        # Parse the input to extract components
+        lines = input_text.strip().split('\n')
+        entity_mention = lines[0].replace('Entity: ', '') if len(lines) > 0 else ""
+        p_main_role = lines[1].replace('Main Role: ', '') if len(lines) > 1 else ""
+        context = lines[2].replace('Context: ', '') if len(lines) > 2 else ""
+        
+        result = _run_classification_inference(entity_mention, p_main_role, context)
+        if result is None:
+            return [[]]
+        
+        # Convert to expected pipeline format
+        scores = result.get('predicted_fine_with_scores', {})
+        pipeline_format = [[{"label": label, "score": score} for label, score in scores.items()]]
+        return pipeline_format
+
 def get_stage2_model():
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification, pipeline
+    """Load optimized classification model"""
+    return OptimizedClassifier()
 
-    model_id = "artur-muratov/franx-cls"
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = AutoModelForSequenceClassification.from_pretrained(model_id)
-    return pipeline("text-classification", model=model, tokenizer=tokenizer, return_all_scores=True)
-
-@st.cache_resource
 def get_ner_model():
-    import torch
-    from src.deberta import DebertaV3NerClassifier
-
-    model_id = 'artur-muratov/franx-ner'
-    bert_model = DebertaV3NerClassifier.load(model_id)
-
-    # Add +1 bias to non-O classes
-    with torch.no_grad():
-        bias = bert_model.model.classifier.bias
-        o_index = bert_model.label2id.get('O', 0)
-        for i in range(len(bias)):
-            if i != o_index:
-                bias[i] += 1.0
-
-    # Move model to device
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    bert_model.model.to(device)
-    if hasattr(bert_model, 'merger'):
-        bert_model.merger.threshold = 0.5
-    return bert_model
+    """Load optimized NER model"""
+    return OptimizedNERModel()
 
 # Utility functions for prediction and stage2
 
@@ -166,10 +220,9 @@ if st.button("Run Entity Predictions"):
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         article_id = f"{filename_input}_{timestamp}"
 
-        # Lazy-load models in order: CLS then NER
+        # Load models (lightweight - optimized for performance)
         with st.spinner("Loading classification model..."):
             clf_pipeline = get_stage2_model()
-        st.success("✅ Classification model loaded")
 
         with st.spinner("Loading NER model..."):
             bert_model = get_ner_model()
