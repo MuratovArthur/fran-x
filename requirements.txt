@@ -9,14 +9,7 @@ networkx
 pyvis
 rapidfuzz
 st_theme
-torch>=2.0.0
-transformers>=4.30.0,<5.0.0
-TorchCRF
-safetensors
 numpy
-accelerate
 scipy
-datasets>=2.14.6
-evaluate>=0.4.1
 nltk
 python-dotenv
